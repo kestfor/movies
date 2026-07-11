@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import type { FeedItem, RatingWithUser, Title } from '../types/api';
 import { ScorePill } from './Ui';
 
-export const posterURL = (path?: string) => (path ? `https://image.tmdb.org/t/p/w342${path}` : '');
+export const posterURL = (path?: string) => path || '';
 
 export function Poster({ title }: { title: Title }) {
   const url = posterURL(title.poster_path);

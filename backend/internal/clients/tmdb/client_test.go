@@ -51,6 +51,9 @@ func TestClientSearchFiltersPeopleAndCaches(t *testing.T) {
 	if len(page.Results) != 1 || page.Results[0].TmdbID != 603 {
 		t.Fatalf("unexpected search results: %#v", page.Results)
 	}
+	if got, want := page.Results[0].PosterPath, "https://image.tmdb.org/t/p/w500/matrix.jpg"; got != want {
+		t.Fatalf("poster path = %q, want %q", got, want)
+	}
 
 	page, err = client.Search(context.Background(), "matrix", 1)
 	if err != nil {
@@ -94,6 +97,9 @@ func TestClientGetParsesTitleAndCaches(t *testing.T) {
 	}
 	if title.Title != "The Matrix" || title.ReleaseYear != 1999 || len(title.Genres) != 2 {
 		t.Fatalf("unexpected title: %#v", title)
+	}
+	if got, want := title.PosterPath, "https://image.tmdb.org/t/p/w500/matrix.jpg"; got != want {
+		t.Fatalf("poster path = %q, want %q", got, want)
 	}
 
 	_, err = client.Get(context.Background(), domain.MediaTypeMovie, 603)

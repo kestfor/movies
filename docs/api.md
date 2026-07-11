@@ -88,7 +88,7 @@ Searches TMDB `/search/multi`. Person results are filtered out. Search remains l
       "title": "Матрица",
       "original_title": "The Matrix",
       "release_year": 1999,
-      "poster_path": "/dXNAPwY7VrqMAo51EKhhCJfaGb5.jpg",
+      "poster_path": "https://image.tmdb.org/t/p/w500/dXNAPwY7VrqMAo51EKhhCJfaGb5.jpg",
       "overview": "..."
     }
   ]
@@ -108,7 +108,7 @@ Returns a title card. Social fields are populated only if the title snapshot exi
     "title": "Матрица",
     "original_title": "The Matrix",
     "release_year": 1999,
-    "poster_path": "/dXNAPwY7VrqMAo51EKhhCJfaGb5.jpg",
+    "poster_path": "https://image.tmdb.org/t/p/w500/dXNAPwY7VrqMAo51EKhhCJfaGb5.jpg",
     "genres": ["боевик", "фантастика"],
     "overview": "..."
   },

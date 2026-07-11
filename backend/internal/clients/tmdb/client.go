@@ -21,6 +21,11 @@ var (
 	ErrUpstream     = errors.New("upstream_error")
 )
 
+const (
+	tmdbImageBaseURL = "https://image.tmdb.org/t/p/"
+	tmdbPosterSize   = "w500"
+)
+
 type Client struct {
 	baseURL    string
 	apiToken   string
@@ -205,7 +210,7 @@ func (r searchResponse) toDomain() domain.SearchPage {
 			Title:         pick(item.Title, item.Name),
 			OriginalTitle: pick(item.OriginalTitle, item.OriginalName),
 			ReleaseYear:   yearFromDate(pick(item.ReleaseDate, item.FirstAirDate)),
-			PosterPath:    item.PosterPath,
+			PosterPath:    posterURL(item.PosterPath),
 			Overview:      item.Overview,
 		})
 	}
@@ -249,10 +254,17 @@ func (r titleResponse) toDomain(mediaType domain.MediaType) domain.Title {
 		Title:         pick(r.Title, r.Name),
 		OriginalTitle: pick(r.OriginalTitle, r.OriginalName),
 		ReleaseYear:   yearFromDate(pick(r.ReleaseDate, r.FirstAirDate)),
-		PosterPath:    r.PosterPath,
+		PosterPath:    posterURL(r.PosterPath),
 		Genres:        genres,
 		Overview:      r.Overview,
 	}
+}
+
+func posterURL(path string) string {
+	if path == "" || strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
+		return path
+	}
+	return tmdbImageBaseURL + tmdbPosterSize + path
 }
 
 func pick(values ...string) string {
