@@ -1,0 +1,162 @@
+type ThemeParams = Record<string, string | undefined>;
+
+type TelegramWebApp = {
+  initData: string;
+  initDataUnsafe?: {
+    start_param?: string;
+    user?: {
+      id: number;
+      first_name?: string;
+      username?: string;
+      photo_url?: string;
+    };
+  };
+  themeParams?: ThemeParams;
+  colorScheme?: 'light' | 'dark';
+  ready?: () => void;
+  expand?: () => void;
+  close?: () => void;
+  openTelegramLink?: (url: string) => void;
+  HapticFeedback?: {
+    impactOccurred?: (style: 'light' | 'medium' | 'heavy') => void;
+    notificationOccurred?: (type: 'error' | 'success' | 'warning') => void;
+  };
+  BackButton?: {
+    show: () => void;
+    hide: () => void;
+    onClick: (handler: () => void) => void;
+    offClick: (handler: () => void) => void;
+  };
+};
+
+declare global {
+  interface Window {
+    Telegram?: {
+      WebApp?: TelegramWebApp;
+    };
+  }
+}
+
+export const tg = window.Telegram?.WebApp;
+
+const DEV_BOT_TOKEN = 'dev-bot-token';
+const DEV_TG_ID = 111;
+const DEV_USERNAME = 'ivan';
+const DEV_FIRST_NAME = 'Иван';
+const DEV_PHOTO_URL = 'https://example.com/photo.jpg';
+
+function isLocalHost(): boolean {
+  return ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname);
+}
+
+async function buildDevInitData(): Promise<string> {
+  const cached = localStorage.getItem('movies.dev_init_data');
+  if (cached) return cached;
+
+  const authDate = String(Math.floor(Date.now() / 1000));
+  const user = JSON.stringify(
+    {
+      id: DEV_TG_ID,
+      username: DEV_USERNAME,
+      first_name: DEV_FIRST_NAME,
+      photo_url: DEV_PHOTO_URL,
+    },
+    null,
+  );
+  const values: Record<string, string> = {
+    auth_date: authDate,
+    query_id: 'AAEAAAE',
+    user,
+  };
+  const dataCheck = Object.keys(values)
+    .sort()
+    .map((key) => `${key}=${values[key]}`)
+    .join('\n');
+
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode('WebAppData'),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const secret = await crypto.subtle.sign('HMAC', keyMaterial, encoder.encode(DEV_BOT_TOKEN));
+  const signatureKey = await crypto.subtle.importKey(
+    'raw',
+    secret,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const hashBuffer = await crypto.subtle.sign('HMAC', signatureKey, encoder.encode(dataCheck));
+  const hash = Array.from(new Uint8Array(hashBuffer), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  const initData = `auth_date=${encodeURIComponent(authDate)}&query_id=${encodeURIComponent('AAEAAAE')}&user=${encodeURIComponent(user)}&hash=${hash}`;
+
+  localStorage.setItem('movies.dev_init_data', initData);
+  return initData;
+}
+
+export async function getInitData(): Promise<string> {
+  if (tg?.initData) return tg.initData;
+  const envInitData = import.meta.env.VITE_DEV_INIT_DATA;
+  if (envInitData) return envInitData;
+  if (isLocalHost()) return buildDevInitData();
+  return '';
+}
+
+export function getStartParam(): string {
+  return tg?.initDataUnsafe?.start_param || '';
+}
+
+export function getInviteUserID(): number | null {
+  const match = getStartParam().match(/^u_(\d+)$/);
+  return match ? Number(match[1]) : null;
+}
+
+export function bootTelegram(): void {
+  tg?.ready?.();
+  tg?.expand?.();
+  applyTelegramTheme();
+}
+
+export function applyTelegramTheme(): void {
+  const theme = tg?.themeParams || {};
+  const root = document.documentElement;
+  const variables: Record<string, string | undefined> = {
+    '--tg-bg': theme.bg_color,
+    '--tg-text': theme.text_color,
+    '--tg-hint': theme.hint_color,
+    '--tg-link': theme.link_color,
+    '--tg-button': theme.button_color,
+    '--tg-button-text': theme.button_text_color,
+    '--tg-secondary-bg': theme.secondary_bg_color,
+    '--tg-header-bg': theme.header_bg_color,
+    '--tg-accent-text': theme.accent_text_color,
+  };
+
+  Object.entries(variables).forEach(([key, value]) => {
+    if (value) root.style.setProperty(key, value);
+  });
+
+  root.dataset.theme = tg?.colorScheme || 'dark';
+}
+
+export function haptic(type: 'light' | 'success' | 'error' = 'light'): void {
+  if (type === 'light') {
+    tg?.HapticFeedback?.impactOccurred?.('light');
+  } else {
+    tg?.HapticFeedback?.notificationOccurred?.(type);
+  }
+}
+
+export function shareInvite(currentUserID: number): void {
+  const bot = import.meta.env.VITE_BOT_USERNAME;
+  const app = import.meta.env.VITE_WEBAPP_SHORT_NAME;
+  const text = encodeURIComponent('Добавляйся в мой КиноКруг');
+  const link = bot && app
+    ? `https://t.me/${bot}/${app}?startapp=u_${currentUserID}`
+    : `${window.location.origin}/friends?invite=u_${currentUserID}`;
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${text}`;
+  tg?.openTelegramLink?.(shareUrl) || window.open(shareUrl, '_blank');
+}
