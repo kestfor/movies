@@ -4,7 +4,7 @@ export DATABASE_URL ?= postgres://movies:movies@localhost:5432/movies?sslmode=di
 .PHONY: up down migrate status generate run test
 
 up:
-	docker compose up -d --build postgres api
+	docker compose up -d --build postgres migrate api
 
 down:
 	docker compose down

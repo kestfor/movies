@@ -8,12 +8,15 @@ FROM deps AS build
 
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux GOBIN=/out go install github.com/jackc/tern/v2@latest
 
 FROM alpine:3.22 AS runtime
 
 RUN adduser -D -H -u 10001 appuser
 WORKDIR /app
 COPY --from=build /out/api /app/api
+COPY --from=build /out/tern /app/tern
+COPY migrations /app/migrations
 
 USER appuser
 EXPOSE 8080
