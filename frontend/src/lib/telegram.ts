@@ -109,9 +109,9 @@ export function getStartParam(): string {
   return tg?.initDataUnsafe?.start_param || '';
 }
 
-export function getInviteUserID(): number | null {
-  const match = getStartParam().match(/^u_(\d+)$/);
-  return match ? Number(match[1]) : null;
+export function getInviteUserUUID(): string | null {
+  const match = getStartParam().match(/^uid_([0-9a-fA-F-]{36})$/);
+  return match ? match[1] : null;
 }
 
 export function bootTelegram(): void {
@@ -150,13 +150,14 @@ export function haptic(type: 'light' | 'success' | 'error' = 'light'): void {
   }
 }
 
-export function shareInvite(currentUserID: number): void {
-  const bot = import.meta.env.VITE_BOT_USERNAME;
-  const app = import.meta.env.VITE_WEBAPP_SHORT_NAME;
+export function shareInvite(currentUserUUID: string): void {
+  haptic('light');
+  const bot = import.meta.env.VITE_BOT_USERNAME || 'moviesclubtechbot';
+  const app = import.meta.env.VITE_WEBAPP_SHORT_NAME || 'moviesclub';
   const text = encodeURIComponent('Добавляйся в мой КиноКруг');
   const link = bot && app
-    ? `https://t.me/${bot}/${app}?startapp=u_${currentUserID}`
-    : `${window.location.origin}/friends?invite=u_${currentUserID}`;
+    ? `https://t.me/${bot}/${app}?startapp=uid_${currentUserUUID}`
+    : `${window.location.origin}/friends?invite=uid_${currentUserUUID}`;
   const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${text}`;
   tg?.openTelegramLink?.(shareUrl) || window.open(shareUrl, '_blank');
 }

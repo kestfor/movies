@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { ApiError } from '../api/client';
+import { haptic } from '../lib/telegram';
 
 export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
   return (
@@ -45,7 +46,14 @@ export function Button({
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'ghost' | 'danger' }) {
   return (
-    <button {...props} className={`button button--${variant} ${props.className || ''}`}>
+    <button
+      {...props}
+      onClick={(event) => {
+        haptic('light');
+        props.onClick?.(event);
+      }}
+      className={`button button--${variant} ${props.className || ''}`}
+    >
       {children}
     </button>
   );

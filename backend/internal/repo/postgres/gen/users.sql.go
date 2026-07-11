@@ -12,7 +12,7 @@ import (
 )
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, tg_id, username, first_name, photo_url, created_at
+SELECT id, uuid, tg_id, username, first_name, photo_url, created_at
 FROM users
 WHERE id = $1
 `
@@ -22,6 +22,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.Uuid,
 		&i.TgID,
 		&i.Username,
 		&i.FirstName,
@@ -31,6 +32,102 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 	return i, err
 }
 
+const getUserByUUID = `-- name: GetUserByUUID :one
+SELECT id, uuid, tg_id, username, first_name, photo_url, created_at
+FROM users
+WHERE uuid = $1
+`
+
+func (q *Queries) GetUserByUUID(ctx context.Context, uuid pgtype.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByUUID, uuid)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.TgID,
+		&i.Username,
+		&i.FirstName,
+		&i.PhotoUrl,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const searchUsersByUsernamePrefix = `-- name: SearchUsersByUsernamePrefix :many
+SELECT
+    u.id,
+    u.uuid,
+    u.tg_id,
+    u.username,
+    u.first_name,
+    u.photo_url,
+    u.created_at,
+    CASE
+        WHEN u.id = $1 THEN 'self'
+        WHEN f.status = 'accepted' THEN 'friend'
+        WHEN f.status = 'pending' AND f.requester_id = $1 THEN 'outgoing'
+        WHEN f.status = 'pending' AND f.addressee_id = $1 THEN 'incoming'
+        ELSE 'none'
+    END AS relationship
+FROM users u
+LEFT JOIN friendships f ON
+    (f.requester_id = $1 AND f.addressee_id = u.id)
+    OR (f.addressee_id = $1 AND f.requester_id = u.id)
+WHERE u.username IS NOT NULL
+  AND lower(u.username) LIKE lower($2) || '%'
+ORDER BY
+    CASE WHEN u.id = $1 THEN 1 ELSE 0 END,
+    u.username,
+    u.id
+LIMIT $3
+`
+
+type SearchUsersByUsernamePrefixParams struct {
+	ID    int64
+	Lower string
+	Limit int32
+}
+
+type SearchUsersByUsernamePrefixRow struct {
+	ID           int64
+	Uuid         pgtype.UUID
+	TgID         int64
+	Username     pgtype.Text
+	FirstName    string
+	PhotoUrl     pgtype.Text
+	CreatedAt    pgtype.Timestamptz
+	Relationship string
+}
+
+func (q *Queries) SearchUsersByUsernamePrefix(ctx context.Context, arg SearchUsersByUsernamePrefixParams) ([]SearchUsersByUsernamePrefixRow, error) {
+	rows, err := q.db.Query(ctx, searchUsersByUsernamePrefix, arg.ID, arg.Lower, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SearchUsersByUsernamePrefixRow
+	for rows.Next() {
+		var i SearchUsersByUsernamePrefixRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uuid,
+			&i.TgID,
+			&i.Username,
+			&i.FirstName,
+			&i.PhotoUrl,
+			&i.CreatedAt,
+			&i.Relationship,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertUserByTelegramID = `-- name: UpsertUserByTelegramID :one
 INSERT INTO users (tg_id, username, first_name, photo_url)
 VALUES ($1, $2, $3, $4)
@@ -38,7 +135,7 @@ ON CONFLICT (tg_id) DO UPDATE
 SET username = EXCLUDED.username,
     first_name = EXCLUDED.first_name,
     photo_url = EXCLUDED.photo_url
-RETURNING id, tg_id, username, first_name, photo_url, created_at
+RETURNING id, uuid, tg_id, username, first_name, photo_url, created_at
 `
 
 type UpsertUserByTelegramIDParams struct {
@@ -58,6 +155,7 @@ func (q *Queries) UpsertUserByTelegramID(ctx context.Context, arg UpsertUserByTe
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.Uuid,
 		&i.TgID,
 		&i.Username,
 		&i.FirstName,

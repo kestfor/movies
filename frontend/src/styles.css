@@ -292,6 +292,20 @@ a {
   margin-bottom: 10px;
 }
 
+.user-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-weight: 650;
+}
+
+.user-link span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .avatar {
   display: inline-grid;
   place-items: center;
@@ -340,26 +354,63 @@ a {
 
 .title-hero {
   display: grid;
-  grid-template-columns: 108px minmax(0, 1fr);
-  gap: 14px;
+  gap: 12px;
   margin-bottom: 12px;
 }
 
-.title-hero .poster {
-  width: 108px;
+.title-hero__top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 14px;
+}
+
+.title-hero__top .poster {
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+}
+
+.title-hero__name {
+  display: grid;
+  align-content: end;
+  gap: 7px;
+  min-width: 0;
+}
+
+.title-hero__name h2,
+.title-hero__name p {
+  margin: 0;
+}
+
+.title-hero__name h2 {
+  overflow-wrap: anywhere;
+  font-size: 24px;
+  line-height: 1.12;
 }
 
 .title-hero__scores {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.title-hero__scores > div {
+  min-width: 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .title-hero__scores > div,
 .stats > div {
   display: grid;
   gap: 5px;
+}
+
+.title-hero__genres,
+.title-hero__overview {
+  margin: 0;
 }
 
 .sliders {
@@ -456,11 +507,40 @@ a {
 }
 
 .invite-panel,
-.stats {
+.stats,
+.profile-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
+}
+
+.invite-panel,
+.stats {
+  justify-content: space-between;
+}
+
+.profile-head {
+  padding: 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--tg-secondary-bg);
+  box-shadow: var(--shadow);
+}
+
+.profile-head .avatar {
+  width: 54px;
+  height: 54px;
+  font-size: 21px;
+}
+
+.profile-head h2,
+.profile-head p {
+  margin: 0;
+}
+
+.profile-head h2 {
+  font-size: 20px;
 }
 
 .stats {
@@ -479,11 +559,22 @@ a {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.user-row > a,
-.user-row > span:nth-child(2) {
+.user-row > .user-link {
   min-width: 0;
   flex: 1;
   font-weight: 650;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  color: var(--tg-hint);
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 13px;
 }
 
 @media (max-width: 420px) {

@@ -64,21 +64,26 @@ export function TitlePage() {
     <>
       <PageHeader title={title.title} subtitle={`${title.media_type === 'tv' ? 'Сериал' : 'Фильм'}${title.release_year ? ` · ${title.release_year}` : ''}`} />
       <section className="title-hero">
-        <Poster title={title} />
-        <div>
-          <div className="title-hero__scores">
-            <div>
-              <span className="muted">Моя</span>
-              <ScorePill value={card.data.my_rating?.avg_score} />
-            </div>
-            <div>
-              <span className="muted">Друзья</span>
-              <ScorePill value={card.data.friends_avg?.overall} muted={!card.data.friends_avg} />
-            </div>
+        <div className="title-hero__top">
+          <Poster title={title} />
+          <div className="title-hero__name">
+            <span className="muted">{title.media_type === 'tv' ? 'Сериал' : 'Фильм'}</span>
+            <h2>{title.title}</h2>
+            {title.release_year ? <p className="muted">{title.release_year}</p> : null}
           </div>
-          {title.genres?.length ? <p className="muted">{title.genres.join(', ')}</p> : null}
-          {title.overview ? <p>{title.overview}</p> : null}
         </div>
+        <div className="title-hero__scores">
+          <div>
+            <span className="muted">Моя</span>
+            <ScorePill value={card.data.my_rating?.avg_score} />
+          </div>
+          <div>
+            <span className="muted">Друзья</span>
+            <ScorePill value={card.data.friends_avg?.overall} muted={!card.data.friends_avg} />
+          </div>
+        </div>
+        {title.genres?.length ? <p className="title-hero__genres muted">{title.genres.join(', ')}</p> : null}
+        {title.overview ? <p className="title-hero__overview">{title.overview}</p> : null}
       </section>
       {card.data.friends_avg ? (
         <section className="panel">
@@ -109,7 +114,7 @@ export function TitlePage() {
         {card.data.friends_ratings.length ? (
           <div className="stack tight">
             {card.data.friends_ratings.map((rating) => (
-              <RatingCard key={rating.user.id} rating={rating} />
+              <RatingCard key={rating.user.uuid} rating={rating} />
             ))}
           </div>
         ) : (

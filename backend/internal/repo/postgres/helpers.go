@@ -14,12 +14,28 @@ import (
 func toDomainUser(user gen.User) domain.User {
 	return domain.User{
 		ID:        user.ID,
+		UUID:      uuidToString(user.Uuid),
 		TgID:      user.TgID,
 		Username:  textToString(user.Username),
 		FirstName: user.FirstName,
 		PhotoURL:  textToString(user.PhotoUrl),
 		CreatedAt: user.CreatedAt.Time,
 	}
+}
+
+func uuidToString(value pgtype.UUID) string {
+	if !value.Valid {
+		return ""
+	}
+	return value.String()
+}
+
+func uuidFromString(value string) (pgtype.UUID, bool) {
+	var uuid pgtype.UUID
+	if err := uuid.Scan(value); err != nil || !uuid.Valid {
+		return pgtype.UUID{}, false
+	}
+	return uuid, true
 }
 
 func toNullText(value string) pgtype.Text {

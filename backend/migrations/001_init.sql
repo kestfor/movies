@@ -103,4 +103,6 @@ DROP TABLE IF EXISTS friendships;
 DROP TYPE IF EXISTS friendship_status;
 DROP TABLE IF EXISTS titles;
 DROP TYPE IF EXISTS media_type;
+DROP INDEX IF EXISTS idx_users_username_lower;
+DROP INDEX IF EXISTS idx_users_uuid;
 DROP TABLE IF EXISTS users;

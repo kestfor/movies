@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import type { FeedItem, RatingWithUser, Title } from '../types/api';
+import type { FeedItem, RatingWithUser, Title, User } from '../types/api';
 import { ScorePill } from './Ui';
 
 export const posterURL = (path?: string) => path || '';
@@ -34,8 +34,7 @@ export function FeedCard({ item }: { item: FeedItem }) {
   return (
     <article className="feed-card">
       <div className="feed-card__user">
-        <Avatar name={item.user.first_name} url={item.user.photo_url} />
-        <span>{item.user.first_name}</span>
+        <UserLink user={item.user} />
         <span className="muted">оценил</span>
         <ScorePill value={item.avg_score} />
       </div>
@@ -49,13 +48,31 @@ export function Avatar({ name, url }: { name: string; url?: string }) {
   return url ? <img className="avatar" src={url} alt="" /> : <span className="avatar">{name.slice(0, 1).toUpperCase()}</span>;
 }
 
+export function UserLink({ user, compact = false }: { user: User; compact?: boolean }) {
+  const content = (
+    <>
+      <Avatar name={user.first_name} url={user.photo_url} />
+      <span>{user.first_name}</span>
+      {!compact && user.username ? <span className="muted">@{user.username}</span> : null}
+    </>
+  );
+
+  if (!user.uuid) {
+    return <span className="user-link">{content}</span>;
+  }
+  return (
+    <Link className="user-link" to={`/profile/${user.uuid}`} onClick={(event) => event.stopPropagation()}>
+      {content}
+    </Link>
+  );
+}
+
 export function RatingCard({ rating }: { rating: RatingWithUser }) {
   return (
     <details className="rating-card">
       <summary>
         <span className="rating-card__user">
-          <Avatar name={rating.user.first_name} url={rating.user.photo_url} />
-          {rating.user.first_name}
+          <UserLink user={rating.user} compact />
         </span>
         <ScorePill value={rating.avg_score} />
       </summary>

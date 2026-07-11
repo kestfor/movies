@@ -19,6 +19,8 @@ type Authenticator interface {
 
 type UserGetter interface {
 	GetByID(ctx context.Context, id int64) (domain.User, error)
+	GetByUUID(ctx context.Context, uuid string) (domain.User, bool, error)
+	SearchByUsernamePrefix(ctx context.Context, currentUserID int64, query string, limit int32) ([]domain.UserSearchResult, error)
 }
 
 type TitleSearcher interface {
@@ -34,7 +36,7 @@ type CriteriaLister interface {
 type RatingManager interface {
 	Upsert(ctx context.Context, userID int64, mediaType domain.MediaType, tmdbID int64, scores map[string]int) (domain.Rating, error)
 	Delete(ctx context.Context, userID int64, mediaType domain.MediaType, tmdbID int64) error
-	ListUserRatings(ctx context.Context, viewerID, userID int64) (domain.ProfileRatingsPage, error)
+	ListUserRatingsByUUID(ctx context.Context, viewerID int64, userUUID string) (domain.ProfileRatingsPage, error)
 }
 
 type CommentManager interface {
@@ -48,9 +50,13 @@ type FriendManager interface {
 	ListFriends(ctx context.Context, userID int64) ([]domain.User, error)
 	ListIncomingRequests(ctx context.Context, userID int64) ([]domain.FriendRequest, error)
 	CreateRequest(ctx context.Context, requesterID, addresseeID int64) (domain.Friendship, error)
+	CreateRequestByUUID(ctx context.Context, requesterID int64, addresseeUUID string) (domain.Friendship, error)
 	AcceptRequest(ctx context.Context, currentUserID, requesterID int64) (domain.Friendship, error)
+	AcceptRequestByUUID(ctx context.Context, currentUserID int64, requesterUUID string) (domain.Friendship, error)
 	DeleteRequest(ctx context.Context, currentUserID, otherUserID int64) error
+	DeleteRequestByUUID(ctx context.Context, currentUserID int64, otherUserUUID string) error
 	DeleteFriend(ctx context.Context, currentUserID, friendID int64) error
+	DeleteFriendByUUID(ctx context.Context, currentUserID int64, friendUUID string) error
 }
 
 type FeedLister interface {
@@ -64,6 +70,7 @@ func NewRouter(authSvc Authenticator, users UserGetter, titles TitleSearcher, cr
 
 	router.GET("/health", health)
 	router.GET("/me", authMiddleware(authSvc), me(users))
+	router.GET("/users/search", authMiddleware(authSvc), searchUsers(users))
 	router.GET("/criteria", authMiddleware(authSvc), listCriteria(criteria))
 	router.GET("/search", authMiddleware(authSvc), searchTitles(titles))
 	router.GET("/titles/:type/:tmdb_id", authMiddleware(authSvc), getTitle(titles))
@@ -76,13 +83,37 @@ func NewRouter(authSvc Authenticator, users UserGetter, titles TitleSearcher, cr
 	router.GET("/friends", authMiddleware(authSvc), listFriends(friends))
 	router.GET("/friends/requests", authMiddleware(authSvc), listFriendRequests(friends))
 	router.POST("/friends/requests", authMiddleware(authSvc), postFriendRequest(friends))
-	router.POST("/friends/requests/:user_id/accept", authMiddleware(authSvc), acceptFriendRequest(friends))
-	router.DELETE("/friends/requests/:user_id", authMiddleware(authSvc), deleteFriendRequest(friends))
-	router.DELETE("/friends/:user_id", authMiddleware(authSvc), deleteFriend(friends))
+	router.POST("/friends/requests/:user_uuid/accept", authMiddleware(authSvc), acceptFriendRequest(friends))
+	router.DELETE("/friends/requests/:user_uuid", authMiddleware(authSvc), deleteFriendRequest(friends))
+	router.DELETE("/friends/:user_uuid", authMiddleware(authSvc), deleteFriend(friends))
 	router.GET("/users/:id/ratings", authMiddleware(authSvc), listUserRatings(ratings))
 	router.GET("/feed", authMiddleware(authSvc), listFeed(feed))
 
 	return router
+}
+
+func searchUsers(users UserGetter) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		user, ok := currentUser(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, errorResponse("unauthorized", "authentication required"))
+			return
+		}
+
+		query := strings.TrimSpace(c.Query("q"))
+		if strings.TrimPrefix(query, "@") == "" {
+			c.JSON(http.StatusOK, gin.H{"users": []domain.UserSearchResult{}})
+			return
+		}
+
+		items, err := users.SearchByUsernamePrefix(c.Request.Context(), user.ID, query, 20)
+		if err != nil {
+			_ = c.Error(err)
+			c.JSON(http.StatusInternalServerError, errorResponse("internal", "internal error"))
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"users": items})
+	}
 }
 
 func health(c *gin.Context) {
@@ -105,7 +136,7 @@ func me(users UserGetter) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"id":         fresh.ID,
+			"uuid":       fresh.UUID,
 			"tg_id":      fresh.TgID,
 			"username":   fresh.Username,
 			"first_name": fresh.FirstName,

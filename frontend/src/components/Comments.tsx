@@ -1,7 +1,7 @@
 import { MessageCircle, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import type { Comment, User } from '../types/api';
-import { Avatar } from './TitleBits';
+import { UserLink } from './TitleBits';
 import { Button } from './Ui';
 
 export function Comments({
@@ -74,13 +74,12 @@ function CommentNode({
   const [replying, setReplying] = useState(false);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(comment.body);
-  const own = me?.id === comment.user.id;
+  const own = me?.uuid === comment.user.uuid;
 
   return (
     <article className={`comment ${comment.parent_id ? 'comment--reply' : ''}`}>
       <div className="comment__head">
-        <Avatar name={comment.user.first_name} url={comment.user.photo_url} />
-        <span>{comment.user.first_name}</span>
+        <UserLink user={comment.user} compact />
       </div>
       {editing ? (
         <form

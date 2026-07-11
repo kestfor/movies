@@ -47,7 +47,7 @@ type Criterion struct {
 
 type Rating struct {
 	ID        int64          `json:"id"`
-	UserID    int64          `json:"user_id"`
+	UserID    int64          `json:"-"`
 	TitleID   int64          `json:"title_id"`
 	AvgScore  float64        `json:"avg_score"`
 	Scores    map[string]int `json:"scores"`
@@ -90,6 +90,7 @@ type ProfileRatingStats struct {
 }
 
 type ProfileRatingsPage struct {
+	User    User               `json:"user"`
 	Ratings []ProfileRating    `json:"ratings"`
 	Stats   ProfileRatingStats `json:"stats"`
 }

@@ -35,6 +35,7 @@ WHERE status = 'accepted'
 -- name: ListAcceptedFriends :many
 SELECT
     u.id,
+    u.uuid,
     u.tg_id,
     u.username,
     u.first_name,
@@ -52,6 +53,7 @@ ORDER BY u.first_name, u.id;
 -- name: ListIncomingFriendRequests :many
 SELECT
     u.id,
+    u.uuid,
     u.tg_id,
     u.username,
     u.first_name,

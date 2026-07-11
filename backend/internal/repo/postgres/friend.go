@@ -18,6 +18,21 @@ func NewFriendRepository(queries *gen.Queries) *FriendRepository {
 	return &FriendRepository{queries: queries}
 }
 
+func (r *FriendRepository) GetUserByUUID(ctx context.Context, rawUUID string) (domain.User, bool, error) {
+	uuid, ok := uuidFromString(rawUUID)
+	if !ok {
+		return domain.User{}, false, nil
+	}
+	user, err := r.queries.GetUserByUUID(ctx, uuid)
+	if err == nil {
+		return toDomainUser(user), true, nil
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.User{}, false, nil
+	}
+	return domain.User{}, false, err
+}
+
 func (r *FriendRepository) ListFriends(ctx context.Context, userID int64) ([]domain.User, error) {
 	users, err := r.queries.ListAcceptedFriends(ctx, userID)
 	if err != nil {
@@ -42,6 +57,7 @@ func (r *FriendRepository) ListIncomingRequests(ctx context.Context, userID int6
 		result = append(result, domain.FriendRequest{
 			User: domain.User{
 				ID:        row.ID,
+				UUID:      uuidToString(row.Uuid),
 				TgID:      row.TgID,
 				Username:  textToString(row.Username),
 				FirstName: row.FirstName,

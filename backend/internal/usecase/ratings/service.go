@@ -18,6 +18,7 @@ type Provider interface {
 }
 
 type Repository interface {
+	GetUserByUUID(ctx context.Context, uuid string) (domain.User, bool, error)
 	GetTitleID(ctx context.Context, mediaType domain.MediaType, tmdbID int64) (int64, bool, error)
 	ListCriteriaByCodes(ctx context.Context, codes []string) (map[string]domain.Criterion, error)
 	Upsert(ctx context.Context, params UpsertRatingParams) (domain.Rating, error)
@@ -115,9 +116,31 @@ func (s *Service) ListUserRatings(ctx context.Context, viewerID, userID int64) (
 		return domain.ProfileRatingsPage{}, err
 	}
 	return domain.ProfileRatingsPage{
+		User:    domain.User{ID: userID},
 		Ratings: ratings,
 		Stats:   profileStats(ratings),
 	}, nil
+}
+
+func (s *Service) ListUserRatingsByUUID(ctx context.Context, viewerID int64, userUUID string) (domain.ProfileRatingsPage, error) {
+	if viewerID == 0 || userUUID == "" {
+		return domain.ProfileRatingsPage{}, ErrValidation
+	}
+
+	target, ok, err := s.repo.GetUserByUUID(ctx, userUUID)
+	if err != nil {
+		return domain.ProfileRatingsPage{}, err
+	}
+	if !ok {
+		return domain.ProfileRatingsPage{}, ErrValidation
+	}
+
+	page, err := s.ListUserRatings(ctx, viewerID, target.ID)
+	if err != nil {
+		return domain.ProfileRatingsPage{}, err
+	}
+	page.User = target
+	return page, nil
 }
 
 func validTitleRef(mediaType domain.MediaType, tmdbID int64) bool {

@@ -39,6 +39,7 @@ func (r *FeedRepository) List(ctx context.Context, userID int64, cursor usecasef
 				ID: row.ID,
 				User: domain.User{
 					ID:        row.AuthorID,
+					UUID:      uuidToString(row.AuthorUuid),
 					TgID:      row.AuthorTgID,
 					Username:  textToString(row.AuthorUsername),
 					FirstName: row.AuthorFirstName,

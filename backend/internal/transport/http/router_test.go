@@ -24,12 +24,21 @@ func (f fakeAuthenticator) Authenticate(context.Context, string) (domain.User, e
 }
 
 type fakeUserGetter struct {
-	user domain.User
-	err  error
+	user          domain.User
+	searchResults []domain.UserSearchResult
+	err           error
 }
 
 func (f fakeUserGetter) GetByID(context.Context, int64) (domain.User, error) {
 	return f.user, f.err
+}
+
+func (f fakeUserGetter) GetByUUID(context.Context, string) (domain.User, bool, error) {
+	return f.user, f.user.ID != 0, f.err
+}
+
+func (f fakeUserGetter) SearchByUsernamePrefix(context.Context, int64, string, int32) ([]domain.UserSearchResult, error) {
+	return f.searchResults, f.err
 }
 
 type fakeTitleSearcher struct {
@@ -72,7 +81,7 @@ func (f fakeRatingManager) Delete(context.Context, int64, domain.MediaType, int6
 	return f.err
 }
 
-func (f fakeRatingManager) ListUserRatings(context.Context, int64, int64) (domain.ProfileRatingsPage, error) {
+func (f fakeRatingManager) ListUserRatingsByUUID(context.Context, int64, string) (domain.ProfileRatingsPage, error) {
 	return domain.ProfileRatingsPage{}, f.err
 }
 
@@ -117,7 +126,15 @@ func (f fakeFriendManager) CreateRequest(context.Context, int64, int64) (domain.
 	return f.friendship, f.err
 }
 
+func (f fakeFriendManager) CreateRequestByUUID(context.Context, int64, string) (domain.Friendship, error) {
+	return f.friendship, f.err
+}
+
 func (f fakeFriendManager) AcceptRequest(context.Context, int64, int64) (domain.Friendship, error) {
+	return f.friendship, f.err
+}
+
+func (f fakeFriendManager) AcceptRequestByUUID(context.Context, int64, string) (domain.Friendship, error) {
 	return f.friendship, f.err
 }
 
@@ -125,7 +142,15 @@ func (f fakeFriendManager) DeleteRequest(context.Context, int64, int64) error {
 	return f.err
 }
 
+func (f fakeFriendManager) DeleteRequestByUUID(context.Context, int64, string) error {
+	return f.err
+}
+
 func (f fakeFriendManager) DeleteFriend(context.Context, int64, int64) error {
+	return f.err
+}
+
+func (f fakeFriendManager) DeleteFriendByUUID(context.Context, int64, string) error {
 	return f.err
 }
 
@@ -143,6 +168,7 @@ func TestMeReturnsCurrentUser(t *testing.T) {
 
 	want := domain.User{
 		ID:        1,
+		UUID:      "11111111-1111-1111-1111-111111111111",
 		TgID:      111,
 		Username:  "ivan",
 		FirstName: "Иван",
@@ -167,6 +193,12 @@ func TestMeReturnsCurrentUser(t *testing.T) {
 	}
 	if got["first_name"] != "Иван" || got["username"] != "ivan" {
 		t.Fatalf("unexpected response: %v", got)
+	}
+	if got["uuid"] != want.UUID {
+		t.Fatalf("uuid = %v, want %s", got["uuid"], want.UUID)
+	}
+	if _, ok := got["id"]; ok {
+		t.Fatalf("response leaks internal id: %v", got)
 	}
 }
 
@@ -219,6 +251,41 @@ func TestSearchReturnsResults(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "\"tmdb_id\":603") {
 		t.Fatalf("response does not contain search result: %s", rec.Body.String())
+	}
+}
+
+func TestUserSearchReturnsRelationshipResults(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := NewRouter(
+		fakeAuthenticator{user: domain.User{ID: 1}},
+		fakeUserGetter{
+			user: domain.User{ID: 1},
+			searchResults: []domain.UserSearchResult{{
+				User:           domain.User{ID: 2, UUID: "22222222-2222-2222-2222-222222222222", Username: "ivan", FirstName: "Иван"},
+				Relationship:   "none",
+				CanSendRequest: true,
+			}},
+		},
+		fakeTitleSearcher{},
+		fakeCriteriaLister{},
+		fakeRatingManager{},
+		fakeCommentManager{},
+		fakeFriendManager{},
+		fakeFeedLister{},
+	)
+
+	req := httptest.NewRequest(http.MethodGet, "/users/search?q=iv", nil)
+	req.Header.Set("Authorization", "tma init-data")
+	rec := httptest.NewRecorder()
+
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if !strings.Contains(rec.Body.String(), "\"relationship\":\"none\"") {
+		t.Fatalf("response does not contain relationship: %s", rec.Body.String())
 	}
 }
 

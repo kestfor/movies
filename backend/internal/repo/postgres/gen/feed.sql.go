@@ -32,6 +32,7 @@ SELECT
     r.created_at,
     r.updated_at,
     u.id AS author_id,
+    u.uuid AS author_uuid,
     u.tg_id AS author_tg_id,
     u.username AS author_username,
     u.first_name AS author_first_name,
@@ -72,6 +73,7 @@ type ListFeedRatingsRow struct {
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
 	AuthorID        int64
+	AuthorUuid      pgtype.UUID
 	AuthorTgID      int64
 	AuthorUsername  pgtype.Text
 	AuthorFirstName string
@@ -112,6 +114,7 @@ func (q *Queries) ListFeedRatings(ctx context.Context, arg ListFeedRatingsParams
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.AuthorID,
+			&i.AuthorUuid,
 			&i.AuthorTgID,
 			&i.AuthorUsername,
 			&i.AuthorFirstName,

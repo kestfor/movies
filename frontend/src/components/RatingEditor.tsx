@@ -1,6 +1,7 @@
 import { Trash2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Criterion, RatingWithUser } from '../types/api';
+import { haptic } from '../lib/telegram';
 import { Button } from './Ui';
 
 export function RatingEditor({
@@ -17,6 +18,7 @@ export function RatingEditor({
   onDelete: () => void;
 }) {
   const [scores, setScores] = useState<Record<string, number>>({});
+  const lastSliderHapticAt = useRef(0);
   const avg = useMemo(() => {
     const values = Object.values(scores);
     if (!values.length) return null;
@@ -29,6 +31,11 @@ export function RatingEditor({
 
   const setScore = (code: string, value: string) => {
     const parsed = Number(value);
+    const now = Date.now();
+    if (now - lastSliderHapticAt.current > 70) {
+      haptic('light');
+      lastSliderHapticAt.current = now;
+    }
     setScores((current) => {
       const next = { ...current };
       if (!parsed) delete next[code];
@@ -45,7 +52,15 @@ export function RatingEditor({
           <p>{avg ? `Итог ${avg.toFixed(1)}` : 'Заполните хотя бы один критерий'}</p>
         </div>
         {rating ? (
-          <button className="icon-button danger" type="button" onClick={onDelete} aria-label="Удалить оценку">
+          <button
+            className="icon-button danger"
+            type="button"
+            onClick={() => {
+              haptic('light');
+              onDelete();
+            }}
+            aria-label="Удалить оценку"
+          >
             <Trash2 size={18} />
           </button>
         ) : null}

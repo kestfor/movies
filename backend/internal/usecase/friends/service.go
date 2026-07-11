@@ -15,6 +15,7 @@ var (
 )
 
 type Repository interface {
+	GetUserByUUID(ctx context.Context, uuid string) (domain.User, bool, error)
 	ListFriends(ctx context.Context, userID int64) ([]domain.User, error)
 	ListIncomingRequests(ctx context.Context, userID int64) ([]domain.FriendRequest, error)
 	GetBetween(ctx context.Context, userID, otherUserID int64) (domain.Friendship, bool, error)
@@ -75,6 +76,20 @@ func (s *Service) CreateRequest(ctx context.Context, requesterID, addresseeID in
 	return s.repo.CreateRequest(ctx, requesterID, addresseeID)
 }
 
+func (s *Service) CreateRequestByUUID(ctx context.Context, requesterID int64, addresseeUUID string) (domain.Friendship, error) {
+	if requesterID == 0 || addresseeUUID == "" {
+		return domain.Friendship{}, ErrValidation
+	}
+	addressee, ok, err := s.repo.GetUserByUUID(ctx, addresseeUUID)
+	if err != nil {
+		return domain.Friendship{}, err
+	}
+	if !ok {
+		return domain.Friendship{}, ErrNotFound
+	}
+	return s.CreateRequest(ctx, requesterID, addressee.ID)
+}
+
 func (s *Service) AcceptRequest(ctx context.Context, currentUserID, requesterID int64) (domain.Friendship, error) {
 	if currentUserID == 0 || requesterID == 0 || currentUserID == requesterID {
 		return domain.Friendship{}, ErrValidation
@@ -88,6 +103,20 @@ func (s *Service) AcceptRequest(ctx context.Context, currentUserID, requesterID 
 		return domain.Friendship{}, ErrNotFound
 	}
 	return friendship, nil
+}
+
+func (s *Service) AcceptRequestByUUID(ctx context.Context, currentUserID int64, requesterUUID string) (domain.Friendship, error) {
+	if currentUserID == 0 || requesterUUID == "" {
+		return domain.Friendship{}, ErrValidation
+	}
+	requester, ok, err := s.repo.GetUserByUUID(ctx, requesterUUID)
+	if err != nil {
+		return domain.Friendship{}, err
+	}
+	if !ok {
+		return domain.Friendship{}, ErrNotFound
+	}
+	return s.AcceptRequest(ctx, currentUserID, requester.ID)
 }
 
 func (s *Service) DeleteRequest(ctx context.Context, currentUserID, otherUserID int64) error {
@@ -105,6 +134,20 @@ func (s *Service) DeleteRequest(ctx context.Context, currentUserID, otherUserID 
 	return nil
 }
 
+func (s *Service) DeleteRequestByUUID(ctx context.Context, currentUserID int64, otherUserUUID string) error {
+	if currentUserID == 0 || otherUserUUID == "" {
+		return ErrValidation
+	}
+	otherUser, ok, err := s.repo.GetUserByUUID(ctx, otherUserUUID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrNotFound
+	}
+	return s.DeleteRequest(ctx, currentUserID, otherUser.ID)
+}
+
 func (s *Service) DeleteFriend(ctx context.Context, currentUserID, friendID int64) error {
 	if currentUserID == 0 || friendID == 0 || currentUserID == friendID {
 		return ErrValidation
@@ -118,4 +161,18 @@ func (s *Service) DeleteFriend(ctx context.Context, currentUserID, friendID int6
 		return ErrNotFound
 	}
 	return nil
+}
+
+func (s *Service) DeleteFriendByUUID(ctx context.Context, currentUserID int64, friendUUID string) error {
+	if currentUserID == 0 || friendUUID == "" {
+		return ErrValidation
+	}
+	friend, ok, err := s.repo.GetUserByUUID(ctx, friendUUID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrNotFound
+	}
+	return s.DeleteFriend(ctx, currentUserID, friend.ID)
 }

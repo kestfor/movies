@@ -89,13 +89,13 @@ func listUserRatings(ratings RatingManager) gin.HandlerFunc {
 			return
 		}
 
-		targetID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-		if err != nil || targetID <= 0 {
-			c.JSON(http.StatusUnprocessableEntity, errorResponse("validation_failed", "invalid user id"))
+		targetUUID := c.Param("id")
+		if targetUUID == "" {
+			c.JSON(http.StatusUnprocessableEntity, errorResponse("validation_failed", "invalid user uuid"))
 			return
 		}
 
-		page, err := ratings.ListUserRatings(c.Request.Context(), user.ID, targetID)
+		page, err := ratings.ListUserRatingsByUUID(c.Request.Context(), user.ID, targetUUID)
 		if err != nil {
 			writeRatingError(c, err)
 			return

@@ -133,6 +133,7 @@ func (q *Queries) GetFriendshipBetweenUsers(ctx context.Context, arg GetFriendsh
 const listAcceptedFriends = `-- name: ListAcceptedFriends :many
 SELECT
     u.id,
+    u.uuid,
     u.tg_id,
     u.username,
     u.first_name,
@@ -159,6 +160,7 @@ func (q *Queries) ListAcceptedFriends(ctx context.Context, requesterID int64) ([
 		var i User
 		if err := rows.Scan(
 			&i.ID,
+			&i.Uuid,
 			&i.TgID,
 			&i.Username,
 			&i.FirstName,
@@ -178,6 +180,7 @@ func (q *Queries) ListAcceptedFriends(ctx context.Context, requesterID int64) ([
 const listIncomingFriendRequests = `-- name: ListIncomingFriendRequests :many
 SELECT
     u.id,
+    u.uuid,
     u.tg_id,
     u.username,
     u.first_name,
@@ -193,6 +196,7 @@ ORDER BY f.created_at, f.requester_id
 
 type ListIncomingFriendRequestsRow struct {
 	ID          int64
+	Uuid        pgtype.UUID
 	TgID        int64
 	Username    pgtype.Text
 	FirstName   string
@@ -212,6 +216,7 @@ func (q *Queries) ListIncomingFriendRequests(ctx context.Context, addresseeID in
 		var i ListIncomingFriendRequestsRow
 		if err := rows.Scan(
 			&i.ID,
+			&i.Uuid,
 			&i.TgID,
 			&i.Username,
 			&i.FirstName,

@@ -101,6 +101,7 @@ func (r *CommentRepository) ListByTitle(ctx context.Context, titleID int64) ([]d
 			UpdatedAt: row.UpdatedAt.Time,
 			User: domain.User{
 				ID:        row.AuthorID,
+				UUID:      uuidToString(row.AuthorUuid),
 				TgID:      row.AuthorTgID,
 				Username:  textToString(row.AuthorUsername),
 				FirstName: row.AuthorFirstName,

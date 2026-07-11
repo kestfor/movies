@@ -11,6 +11,7 @@ import type {
   SearchPage,
   TitleCard,
   User,
+  UserSearchResult,
 } from '../types/api';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -68,6 +69,7 @@ const qs = (params: Record<string, string | number | undefined>) => {
 
 export const api = {
   me: () => request<User>('/me'),
+  userSearch: (q: string) => request<{ users: UserSearchResult[] }>(`/users/search${qs({ q })}`),
   criteria: () => request<{ criteria: Criterion[] }>('/criteria'),
   search: (q: string, page = 1) => request<SearchPage>(`/search${qs({ q, page })}`),
   title: (type: string, id: string | number) => request<TitleCard>(`/titles/${type}/${id}`),
@@ -94,16 +96,16 @@ export const api = {
     request<{ comment: Comment }>(`/comments/${id}`, { method: 'DELETE' }),
   friends: () => request<{ friends: User[] }>('/friends'),
   friendRequests: () => request<{ requests: FriendRequest[] }>('/friends/requests'),
-  createFriendRequest: (userID: number) =>
+  createFriendRequest: (userUUID: string) =>
     request<{ friendship: Friendship }>('/friends/requests', {
       method: 'POST',
-      body: JSON.stringify({ user_id: userID }),
+      body: JSON.stringify({ user_uuid: userUUID }),
     }),
-  acceptFriendRequest: (userID: number) =>
-    request<{ friendship: Friendship }>(`/friends/requests/${userID}/accept`, { method: 'POST' }),
-  deleteFriendRequest: (userID: number) =>
-    request<void>(`/friends/requests/${userID}`, { method: 'DELETE' }),
-  deleteFriend: (userID: number) => request<void>(`/friends/${userID}`, { method: 'DELETE' }),
+  acceptFriendRequest: (userUUID: string) =>
+    request<{ friendship: Friendship }>(`/friends/requests/${userUUID}/accept`, { method: 'POST' }),
+  deleteFriendRequest: (userUUID: string) =>
+    request<void>(`/friends/requests/${userUUID}`, { method: 'DELETE' }),
+  deleteFriend: (userUUID: string) => request<void>(`/friends/${userUUID}`, { method: 'DELETE' }),
   feed: (cursor?: string, limit = 20) => request<FeedPage>(`/feed${qs({ cursor, limit })}`),
-  profileRatings: (userID: number) => request<ProfileRatingsPage>(`/users/${userID}/ratings`),
+  profileRatings: (userUUID: string) => request<ProfileRatingsPage>(`/users/${userUUID}/ratings`),
 };

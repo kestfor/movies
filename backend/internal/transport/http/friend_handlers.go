@@ -3,15 +3,16 @@ package http
 import (
 	"errors"
 	"net/http"
-	"strconv"
 
+	"movies/backend/internal/domain"
 	usecasefriends "movies/backend/internal/usecase/friends"
 
 	"github.com/gin-gonic/gin"
 )
 
 type createFriendRequestBody struct {
-	UserID int64 `json:"user_id"`
+	UserID   int64  `json:"user_id"`
+	UserUUID string `json:"user_uuid"`
 }
 
 func listFriends(friends FriendManager) gin.HandlerFunc {
@@ -62,7 +63,15 @@ func postFriendRequest(friends FriendManager) gin.HandlerFunc {
 			return
 		}
 
-		friendship, err := friends.CreateRequest(c.Request.Context(), user.ID, req.UserID)
+		var (
+			friendship domain.Friendship
+			err        error
+		)
+		if req.UserUUID != "" {
+			friendship, err = friends.CreateRequestByUUID(c.Request.Context(), user.ID, req.UserUUID)
+		} else {
+			friendship, err = friends.CreateRequest(c.Request.Context(), user.ID, req.UserID)
+		}
 		if err != nil {
 			writeFriendError(c, err)
 			return
@@ -80,13 +89,13 @@ func acceptFriendRequest(friends FriendManager) gin.HandlerFunc {
 			return
 		}
 
-		requesterID, ok := userIDFromPath(c)
-		if !ok {
-			c.JSON(http.StatusUnprocessableEntity, errorResponse("validation_failed", "invalid user id"))
+		requesterUUID := c.Param("user_uuid")
+		if requesterUUID == "" {
+			c.JSON(http.StatusUnprocessableEntity, errorResponse("validation_failed", "invalid user uuid"))
 			return
 		}
 
-		friendship, err := friends.AcceptRequest(c.Request.Context(), user.ID, requesterID)
+		friendship, err := friends.AcceptRequestByUUID(c.Request.Context(), user.ID, requesterUUID)
 		if err != nil {
 			writeFriendError(c, err)
 			return
@@ -104,13 +113,13 @@ func deleteFriendRequest(friends FriendManager) gin.HandlerFunc {
 			return
 		}
 
-		otherUserID, ok := userIDFromPath(c)
-		if !ok {
-			c.JSON(http.StatusUnprocessableEntity, errorResponse("validation_failed", "invalid user id"))
+		otherUserUUID := c.Param("user_uuid")
+		if otherUserUUID == "" {
+			c.JSON(http.StatusUnprocessableEntity, errorResponse("validation_failed", "invalid user uuid"))
 			return
 		}
 
-		if err := friends.DeleteRequest(c.Request.Context(), user.ID, otherUserID); err != nil {
+		if err := friends.DeleteRequestByUUID(c.Request.Context(), user.ID, otherUserUUID); err != nil {
 			writeFriendError(c, err)
 			return
 		}
@@ -127,24 +136,19 @@ func deleteFriend(friends FriendManager) gin.HandlerFunc {
 			return
 		}
 
-		friendID, ok := userIDFromPath(c)
-		if !ok {
-			c.JSON(http.StatusUnprocessableEntity, errorResponse("validation_failed", "invalid user id"))
+		friendUUID := c.Param("user_uuid")
+		if friendUUID == "" {
+			c.JSON(http.StatusUnprocessableEntity, errorResponse("validation_failed", "invalid user uuid"))
 			return
 		}
 
-		if err := friends.DeleteFriend(c.Request.Context(), user.ID, friendID); err != nil {
+		if err := friends.DeleteFriendByUUID(c.Request.Context(), user.ID, friendUUID); err != nil {
 			writeFriendError(c, err)
 			return
 		}
 
 		c.Status(http.StatusNoContent)
 	}
-}
-
-func userIDFromPath(c *gin.Context) (int64, bool) {
-	id, err := strconv.ParseInt(c.Param("user_id"), 10, 64)
-	return id, err == nil && id > 0
 }
 
 func writeFriendError(c *gin.Context, err error) {

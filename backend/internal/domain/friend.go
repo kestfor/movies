@@ -10,8 +10,8 @@ const (
 )
 
 type Friendship struct {
-	RequesterID int64            `json:"requester_id"`
-	AddresseeID int64            `json:"addressee_id"`
+	RequesterID int64            `json:"-"`
+	AddresseeID int64            `json:"-"`
 	Status      FriendshipStatus `json:"status"`
 	CreatedAt   time.Time        `json:"created_at"`
 	RespondedAt time.Time        `json:"responded_at,omitempty"`

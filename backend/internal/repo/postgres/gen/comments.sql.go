@@ -78,6 +78,7 @@ SELECT
     c.created_at,
     c.updated_at,
     u.id AS author_id,
+    u.uuid AS author_uuid,
     u.tg_id AS author_tg_id,
     u.username AS author_username,
     u.first_name AS author_first_name,
@@ -99,6 +100,7 @@ type ListCommentsByTitleRow struct {
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
 	AuthorID        int64
+	AuthorUuid      pgtype.UUID
 	AuthorTgID      int64
 	AuthorUsername  pgtype.Text
 	AuthorFirstName string
@@ -125,6 +127,7 @@ func (q *Queries) ListCommentsByTitle(ctx context.Context, titleID int64) ([]Lis
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.AuthorID,
+			&i.AuthorUuid,
 			&i.AuthorTgID,
 			&i.AuthorUsername,
 			&i.AuthorFirstName,

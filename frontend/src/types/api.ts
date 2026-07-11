@@ -1,7 +1,7 @@
 export type MediaType = 'movie' | 'tv';
 
 export type User = {
-  id: number;
+  uuid: string;
   tg_id: number;
   username?: string;
   first_name: string;
@@ -38,7 +38,6 @@ export type RatingWithUser = {
 
 export type Rating = {
   id: number;
-  user_id: number;
   title_id: number;
   avg_score: number;
   scores: Record<string, number>;
@@ -94,6 +93,7 @@ export type FeedPage = {
 };
 
 export type ProfileRatingsPage = {
+  user: User;
   ratings: Array<{
     title: Title;
     avg_score: number;
@@ -113,11 +113,17 @@ export type FriendRequest = {
 };
 
 export type Friendship = {
-  requester_id: number;
-  addressee_id: number;
   status: 'pending' | 'accepted';
   created_at: string;
   responded_at?: string;
+};
+
+export type UserSearchResult = {
+  user: User;
+  relationship: 'self' | 'friend' | 'incoming' | 'outgoing' | 'none';
+  can_send_request: boolean;
+  can_open_profile: boolean;
+  can_accept_request: boolean;
 };
 
 export type ApiErrorBody = {

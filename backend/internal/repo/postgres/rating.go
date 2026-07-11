@@ -23,6 +23,21 @@ func NewRatingRepository(pool *pgxpool.Pool, queries *gen.Queries) *RatingReposi
 	return &RatingRepository{pool: pool, queries: queries}
 }
 
+func (r *RatingRepository) GetUserByUUID(ctx context.Context, rawUUID string) (domain.User, bool, error) {
+	uuid, ok := uuidFromString(rawUUID)
+	if !ok {
+		return domain.User{}, false, nil
+	}
+	user, err := r.queries.GetUserByUUID(ctx, uuid)
+	if err == nil {
+		return toDomainUser(user), true, nil
+	}
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.User{}, false, nil
+	}
+	return domain.User{}, false, err
+}
+
 func (r *RatingRepository) TitleExists(ctx context.Context, mediaType domain.MediaType, tmdbID int64) (bool, error) {
 	_, ok, err := r.GetTitleID(ctx, mediaType, tmdbID)
 	return ok, err
@@ -231,6 +246,7 @@ type ratingRowData struct {
 	CreatedAt       pgtype.Timestamptz
 	UpdatedAt       pgtype.Timestamptz
 	AuthorID        int64
+	AuthorUUID      pgtype.UUID
 	AuthorTgID      int64
 	AuthorUsername  pgtype.Text
 	AuthorFirstName string
@@ -250,6 +266,7 @@ func ratingRowsToDomain[T any](rows []T, get func(T) ratingRowData) []domain.Rat
 			ordered = append(ordered, domain.RatingWithUser{
 				User: domain.User{
 					ID:        data.AuthorID,
+					UUID:      uuidToString(data.AuthorUUID),
 					TgID:      data.AuthorTgID,
 					Username:  textToString(data.AuthorUsername),
 					FirstName: data.AuthorFirstName,
@@ -276,6 +293,7 @@ func getRatingByUserTitleRowData(row gen.GetRatingByUserTitleRow) ratingRowData 
 		CreatedAt:       row.CreatedAt,
 		UpdatedAt:       row.UpdatedAt,
 		AuthorID:        row.AuthorID,
+		AuthorUUID:      row.AuthorUuid,
 		AuthorTgID:      row.AuthorTgID,
 		AuthorUsername:  row.AuthorUsername,
 		AuthorFirstName: row.AuthorFirstName,
@@ -293,6 +311,7 @@ func listFriendRatingsByTitleRowData(row gen.ListFriendRatingsByTitleRow) rating
 		CreatedAt:       row.CreatedAt,
 		UpdatedAt:       row.UpdatedAt,
 		AuthorID:        row.AuthorID,
+		AuthorUUID:      row.AuthorUuid,
 		AuthorTgID:      row.AuthorTgID,
 		AuthorUsername:  row.AuthorUsername,
 		AuthorFirstName: row.AuthorFirstName,
