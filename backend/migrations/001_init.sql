@@ -1,4 +1,4 @@
-CREATE TABLE users (
+CREATE TABLE if not exists users (
     id         BIGSERIAL PRIMARY KEY,
     tg_id      BIGINT UNIQUE NOT NULL,
     username   TEXT,
@@ -9,7 +9,7 @@ CREATE TABLE users (
 
 CREATE TYPE media_type AS ENUM ('movie', 'tv');
 
-CREATE TABLE titles (
+CREATE TABLE if not exists titles (
     id             BIGSERIAL PRIMARY KEY,
     tmdb_id        BIGINT NOT NULL,
     media_type     media_type NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE titles (
 
 CREATE TYPE friendship_status AS ENUM ('pending', 'accepted');
 
-CREATE TABLE friendships (
+CREATE TABLE if not exists friendships (
     requester_id BIGINT NOT NULL REFERENCES users(id),
     addressee_id BIGINT NOT NULL REFERENCES users(id),
     status       friendship_status NOT NULL DEFAULT 'pending',
@@ -35,9 +35,9 @@ CREATE TABLE friendships (
     CHECK (requester_id <> addressee_id)
 );
 
-CREATE INDEX idx_friendships_addressee ON friendships (addressee_id, status);
+CREATE INDEX if not exists idx_friendships_addressee ON friendships (addressee_id, status);
 
-CREATE TABLE criteria (
+CREATE TABLE if not exists criteria (
     id         SMALLSERIAL PRIMARY KEY,
     code       TEXT UNIQUE NOT NULL,
     name       TEXT NOT NULL,
@@ -51,9 +51,10 @@ INSERT INTO criteria (code, name, sort_order) VALUES
     ('acting',     'Актёрская игра', 3),
     ('music',      'Музыка',         4),
     ('visuals',    'Визуал',         5),
-    ('atmosphere', 'Атмосфера',      6);
+    ('atmosphere', 'Атмосфера',      6)
+on conflict do nothing;
 
-CREATE TABLE ratings (
+CREATE TABLE if not exists ratings (
     id         BIGSERIAL PRIMARY KEY,
     user_id    BIGINT NOT NULL REFERENCES users(id),
     title_id   BIGINT NOT NULL REFERENCES titles(id),
@@ -63,17 +64,17 @@ CREATE TABLE ratings (
     UNIQUE (user_id, title_id)
 );
 
-CREATE INDEX idx_ratings_user_created ON ratings (user_id, created_at DESC, id DESC);
-CREATE INDEX idx_ratings_title ON ratings (title_id);
+CREATE INDEX if not exists idx_ratings_user_created ON ratings (user_id, created_at DESC, id DESC);
+CREATE INDEX if not exists idx_ratings_title ON ratings (title_id);
 
-CREATE TABLE rating_scores (
+CREATE TABLE if not exists rating_scores (
     rating_id    BIGINT NOT NULL REFERENCES ratings(id) ON DELETE CASCADE,
     criterion_id SMALLINT NOT NULL REFERENCES criteria(id),
     score        SMALLINT NOT NULL CHECK (score BETWEEN 1 AND 10),
     PRIMARY KEY (rating_id, criterion_id)
 );
 
-CREATE TABLE comments (
+CREATE TABLE if not exists comments (
     id         BIGSERIAL PRIMARY KEY,
     title_id   BIGINT NOT NULL REFERENCES titles(id),
     user_id    BIGINT NOT NULL REFERENCES users(id),
@@ -84,8 +85,8 @@ CREATE TABLE comments (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_comments_title ON comments (title_id, created_at, id);
-CREATE INDEX idx_comments_parent ON comments (parent_id);
+CREATE INDEX if not exists idx_comments_title ON comments (title_id, created_at, id);
+CREATE INDEX if not exists idx_comments_parent ON comments (parent_id);
 
 ---- create above / drop below ----
 
