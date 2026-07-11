@@ -297,6 +297,7 @@ a {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  max-width: 100%;
   font-weight: 650;
 }
 
@@ -491,6 +492,13 @@ a {
   gap: 12px;
 }
 
+.comment__date {
+  margin-left: auto;
+  color: var(--tg-hint);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .comment__actions button {
   display: inline-flex;
   align-items: center;
@@ -520,6 +528,8 @@ a {
 }
 
 .profile-head {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) max-content;
   padding: 14px;
   margin-bottom: 12px;
   border: 1px solid var(--border);
@@ -536,7 +546,10 @@ a {
 
 .profile-head h2,
 .profile-head p {
+  overflow: hidden;
   margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-head h2 {
@@ -553,6 +566,9 @@ a {
 }
 
 .user-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: center;
   min-height: 46px;
   padding: 8px;
   border-radius: 8px;
@@ -561,8 +577,23 @@ a {
 
 .user-row > .user-link {
   min-width: 0;
-  flex: 1;
   font-weight: 650;
+}
+
+.user-row > .muted {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.user-row > .button,
+.user-row > .status-chip {
+  justify-self: end;
+}
+
+.user-row__actions {
+  display: flex;
+  justify-self: end;
+  gap: 8px;
 }
 
 .status-chip {
@@ -601,5 +632,31 @@ a {
   .slider-row input {
     grid-column: 1 / -1;
     grid-row: 2;
+  }
+
+  .user-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .user-row > .button,
+  .user-row > .status-chip,
+  .user-row > .muted,
+  .user-row__actions {
+    justify-self: stretch;
+  }
+
+  .user-row__actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .profile-head {
+    grid-template-columns: 54px minmax(0, 1fr);
+  }
+
+  .profile-head > .button,
+  .profile-head > .status-chip {
+    grid-column: 1 / -1;
+    justify-self: stretch;
   }
 }

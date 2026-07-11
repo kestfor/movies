@@ -19,6 +19,7 @@ type Provider interface {
 
 type Repository interface {
 	GetUserByUUID(ctx context.Context, uuid string) (domain.User, bool, error)
+	GetUserRelationship(ctx context.Context, viewerID, userID int64) (string, error)
 	GetTitleID(ctx context.Context, mediaType domain.MediaType, tmdbID int64) (int64, bool, error)
 	ListCriteriaByCodes(ctx context.Context, codes []string) (map[string]domain.Criterion, error)
 	Upsert(ctx context.Context, params UpsertRatingParams) (domain.Rating, error)
@@ -116,9 +117,10 @@ func (s *Service) ListUserRatings(ctx context.Context, viewerID, userID int64) (
 		return domain.ProfileRatingsPage{}, err
 	}
 	return domain.ProfileRatingsPage{
-		User:    domain.User{ID: userID},
-		Ratings: ratings,
-		Stats:   profileStats(ratings),
+		User:         domain.User{ID: userID},
+		Relationship: "",
+		Ratings:      ratings,
+		Stats:        profileStats(ratings),
 	}, nil
 }
 
@@ -139,7 +141,12 @@ func (s *Service) ListUserRatingsByUUID(ctx context.Context, viewerID int64, use
 	if err != nil {
 		return domain.ProfileRatingsPage{}, err
 	}
+	relationship, err := s.repo.GetUserRelationship(ctx, viewerID, target.ID)
+	if err != nil {
+		return domain.ProfileRatingsPage{}, err
+	}
 	page.User = target
+	page.Relationship = relationship
 	return page, nil
 }
 

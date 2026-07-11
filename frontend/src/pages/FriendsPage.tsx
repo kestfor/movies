@@ -143,10 +143,12 @@ export function FriendsPage() {
             {requests.data.requests.map((request) => (
               <div className="user-row" key={request.user.uuid}>
                 <UserLink user={request.user} />
-                <Button onClick={() => accept.mutate(request.user.uuid)}>Принять</Button>
-                <Button variant="ghost" onClick={() => decline.mutate(request.user.uuid)}>
-                  Отклонить
-                </Button>
+                <div className="user-row__actions">
+                  <Button onClick={() => accept.mutate(request.user.uuid)}>Принять</Button>
+                  <Button variant="ghost" onClick={() => decline.mutate(request.user.uuid)}>
+                    Отклонить
+                  </Button>
+                </div>
               </div>
             ))}
           </div>

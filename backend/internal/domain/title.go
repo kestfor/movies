@@ -90,9 +90,10 @@ type ProfileRatingStats struct {
 }
 
 type ProfileRatingsPage struct {
-	User    User               `json:"user"`
-	Ratings []ProfileRating    `json:"ratings"`
-	Stats   ProfileRatingStats `json:"stats"`
+	User         User               `json:"user"`
+	Relationship string             `json:"relationship"`
+	Ratings      []ProfileRating    `json:"ratings"`
+	Stats        ProfileRatingStats `json:"stats"`
 }
 
 type FeedItem struct {

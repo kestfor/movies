@@ -17,9 +17,19 @@ FROM users
 WHERE id = $1
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
+type GetUserByIDRow struct {
+	ID        int64
+	Uuid      pgtype.UUID
+	TgID      int64
+	Username  pgtype.Text
+	FirstName string
+	PhotoUrl  pgtype.Text
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) GetUserByID(ctx context.Context, id int64) (GetUserByIDRow, error) {
 	row := q.db.QueryRow(ctx, getUserByID, id)
-	var i User
+	var i GetUserByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Uuid,
@@ -38,9 +48,19 @@ FROM users
 WHERE uuid = $1
 `
 
-func (q *Queries) GetUserByUUID(ctx context.Context, uuid pgtype.UUID) (User, error) {
+type GetUserByUUIDRow struct {
+	ID        int64
+	Uuid      pgtype.UUID
+	TgID      int64
+	Username  pgtype.Text
+	FirstName string
+	PhotoUrl  pgtype.Text
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) GetUserByUUID(ctx context.Context, uuid pgtype.UUID) (GetUserByUUIDRow, error) {
 	row := q.db.QueryRow(ctx, getUserByUUID, uuid)
-	var i User
+	var i GetUserByUUIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Uuid,
@@ -51,6 +71,34 @@ func (q *Queries) GetUserByUUID(ctx context.Context, uuid pgtype.UUID) (User, er
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const getUserRelationship = `-- name: GetUserRelationship :one
+SELECT
+    CASE
+        WHEN $1::bigint = $2::bigint THEN 'self'
+        WHEN f.status = 'accepted' THEN 'friend'
+        WHEN f.status = 'pending' AND f.requester_id = $1 THEN 'outgoing'
+        WHEN f.status = 'pending' AND f.addressee_id = $1 THEN 'incoming'
+        ELSE 'none'
+    END AS relationship
+FROM users u
+LEFT JOIN friendships f ON
+    (f.requester_id = $1 AND f.addressee_id = u.id)
+    OR (f.addressee_id = $1 AND f.requester_id = u.id)
+WHERE u.id = $2
+`
+
+type GetUserRelationshipParams struct {
+	Column1 int64
+	Column2 int64
+}
+
+func (q *Queries) GetUserRelationship(ctx context.Context, arg GetUserRelationshipParams) (string, error) {
+	row := q.db.QueryRow(ctx, getUserRelationship, arg.Column1, arg.Column2)
+	var relationship string
+	err := row.Scan(&relationship)
+	return relationship, err
 }
 
 const searchUsersByUsernamePrefix = `-- name: SearchUsersByUsernamePrefix :many
@@ -145,14 +193,24 @@ type UpsertUserByTelegramIDParams struct {
 	PhotoUrl  pgtype.Text
 }
 
-func (q *Queries) UpsertUserByTelegramID(ctx context.Context, arg UpsertUserByTelegramIDParams) (User, error) {
+type UpsertUserByTelegramIDRow struct {
+	ID        int64
+	Uuid      pgtype.UUID
+	TgID      int64
+	Username  pgtype.Text
+	FirstName string
+	PhotoUrl  pgtype.Text
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) UpsertUserByTelegramID(ctx context.Context, arg UpsertUserByTelegramIDParams) (UpsertUserByTelegramIDRow, error) {
 	row := q.db.QueryRow(ctx, upsertUserByTelegramID,
 		arg.TgID,
 		arg.Username,
 		arg.FirstName,
 		arg.PhotoUrl,
 	)
-	var i User
+	var i UpsertUserByTelegramIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Uuid,

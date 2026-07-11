@@ -1,17 +1,37 @@
-import { useQuery } from '@tanstack/react-query';
+import { Check, Clock, UserMinus, UserPlus } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { Avatar, TitleRow } from '../components/TitleBits';
-import { EmptyState, ErrorState, LoadingState, PageHeader, ScorePill } from '../components/Ui';
+import { Button, EmptyState, ErrorState, LoadingState, PageHeader, ScorePill } from '../components/Ui';
 
 export function ProfilePage() {
   const { id } = useParams();
+  const queryClient = useQueryClient();
   const me = useQuery({ queryKey: ['me'], queryFn: api.me });
   const userUUID = id === 'me' ? me.data?.uuid : id;
   const profile = useQuery({
     queryKey: ['profile', userUUID],
     queryFn: () => api.profileRatings(userUUID as string),
     enabled: Boolean(userUUID),
+  });
+  const refreshSocial = () => {
+    queryClient.invalidateQueries({ queryKey: ['profile', userUUID] });
+    queryClient.invalidateQueries({ queryKey: ['friends'] });
+    queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
+    queryClient.invalidateQueries({ queryKey: ['userSearch'] });
+  };
+  const create = useMutation({
+    mutationFn: (uuid: string) => api.createFriendRequest(uuid),
+    onSuccess: refreshSocial,
+  });
+  const accept = useMutation({
+    mutationFn: (uuid: string) => api.acceptFriendRequest(uuid),
+    onSuccess: refreshSocial,
+  });
+  const remove = useMutation({
+    mutationFn: (uuid: string) => api.deleteFriend(uuid),
+    onSuccess: refreshSocial,
   });
 
   if (me.isLoading || profile.isLoading) return <LoadingState label="Открываем профиль" />;
@@ -32,6 +52,26 @@ export function ProfilePage() {
             <h2>{profileUser.first_name}</h2>
             {profileUser.username ? <p className="muted">@{profileUser.username}</p> : null}
           </div>
+          {profile.data?.relationship === 'none' ? (
+            <Button disabled={create.isPending} onClick={() => create.mutate(profileUser.uuid)}>
+              <UserPlus size={18} /> Добавить
+            </Button>
+          ) : null}
+          {profile.data?.relationship === 'incoming' ? (
+            <Button disabled={accept.isPending} onClick={() => accept.mutate(profileUser.uuid)}>
+              <Check size={18} /> Принять
+            </Button>
+          ) : null}
+          {profile.data?.relationship === 'outgoing' ? (
+            <span className="status-chip">
+              <Clock size={14} /> Заявка отправлена
+            </span>
+          ) : null}
+          {profile.data?.relationship === 'friend' ? (
+            <Button variant="ghost" disabled={remove.isPending} onClick={() => remove.mutate(profileUser.uuid)}>
+              <UserMinus size={18} /> Удалить
+            </Button>
+          ) : null}
         </section>
       ) : null}
       <section className="stats">

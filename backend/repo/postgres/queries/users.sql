@@ -44,3 +44,18 @@ ORDER BY
     u.username,
     u.id
 LIMIT $3;
+
+-- name: GetUserRelationship :one
+SELECT
+    CASE
+        WHEN $1::bigint = $2::bigint THEN 'self'
+        WHEN f.status = 'accepted' THEN 'friend'
+        WHEN f.status = 'pending' AND f.requester_id = $1 THEN 'outgoing'
+        WHEN f.status = 'pending' AND f.addressee_id = $1 THEN 'incoming'
+        ELSE 'none'
+    END AS relationship
+FROM users u
+LEFT JOIN friendships f ON
+    (f.requester_id = $1 AND f.addressee_id = u.id)
+    OR (f.addressee_id = $1 AND f.requester_id = u.id)
+WHERE u.id = $2;

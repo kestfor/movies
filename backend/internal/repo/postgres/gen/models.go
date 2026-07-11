@@ -152,10 +152,10 @@ type Title struct {
 
 type User struct {
 	ID        int64
-	Uuid      pgtype.UUID
 	TgID      int64
 	Username  pgtype.Text
 	FirstName string
 	PhotoUrl  pgtype.Text
 	CreatedAt pgtype.Timestamptz
+	Uuid      pgtype.UUID
 }

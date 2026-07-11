@@ -149,15 +149,25 @@ WHERE (f.requester_id = $1 OR f.addressee_id = $1)
 ORDER BY u.first_name, u.id
 `
 
-func (q *Queries) ListAcceptedFriends(ctx context.Context, requesterID int64) ([]User, error) {
+type ListAcceptedFriendsRow struct {
+	ID        int64
+	Uuid      pgtype.UUID
+	TgID      int64
+	Username  pgtype.Text
+	FirstName string
+	PhotoUrl  pgtype.Text
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) ListAcceptedFriends(ctx context.Context, requesterID int64) ([]ListAcceptedFriendsRow, error) {
 	rows, err := q.db.Query(ctx, listAcceptedFriends, requesterID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []User
+	var items []ListAcceptedFriendsRow
 	for rows.Next() {
-		var i User
+		var i ListAcceptedFriendsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Uuid,

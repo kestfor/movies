@@ -25,7 +25,7 @@ func (r *FriendRepository) GetUserByUUID(ctx context.Context, rawUUID string) (d
 	}
 	user, err := r.queries.GetUserByUUID(ctx, uuid)
 	if err == nil {
-		return toDomainUser(user), true, nil
+		return toDomainUserFields(user.ID, user.Uuid, user.TgID, user.Username, user.FirstName, user.PhotoUrl, user.CreatedAt), true, nil
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.User{}, false, nil
@@ -41,7 +41,7 @@ func (r *FriendRepository) ListFriends(ctx context.Context, userID int64) ([]dom
 
 	result := make([]domain.User, 0, len(users))
 	for _, user := range users {
-		result = append(result, toDomainUser(user))
+		result = append(result, toDomainUserFields(user.ID, user.Uuid, user.TgID, user.Username, user.FirstName, user.PhotoUrl, user.CreatedAt))
 	}
 	return result, nil
 }

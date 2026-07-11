@@ -12,14 +12,26 @@ import (
 )
 
 func toDomainUser(user gen.User) domain.User {
+	return toDomainUserFields(user.ID, user.Uuid, user.TgID, user.Username, user.FirstName, user.PhotoUrl, user.CreatedAt)
+}
+
+func toDomainUserFields(
+	id int64,
+	uuid pgtype.UUID,
+	tgID int64,
+	username pgtype.Text,
+	firstName string,
+	photoURL pgtype.Text,
+	createdAt pgtype.Timestamptz,
+) domain.User {
 	return domain.User{
-		ID:        user.ID,
-		UUID:      uuidToString(user.Uuid),
-		TgID:      user.TgID,
-		Username:  textToString(user.Username),
-		FirstName: user.FirstName,
-		PhotoURL:  textToString(user.PhotoUrl),
-		CreatedAt: user.CreatedAt.Time,
+		ID:        id,
+		UUID:      uuidToString(uuid),
+		TgID:      tgID,
+		Username:  textToString(username),
+		FirstName: firstName,
+		PhotoURL:  textToString(photoURL),
+		CreatedAt: createdAt.Time,
 	}
 }
 

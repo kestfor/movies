@@ -30,12 +30,19 @@ func (r *RatingRepository) GetUserByUUID(ctx context.Context, rawUUID string) (d
 	}
 	user, err := r.queries.GetUserByUUID(ctx, uuid)
 	if err == nil {
-		return toDomainUser(user), true, nil
+		return toDomainUserFields(user.ID, user.Uuid, user.TgID, user.Username, user.FirstName, user.PhotoUrl, user.CreatedAt), true, nil
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.User{}, false, nil
 	}
 	return domain.User{}, false, err
+}
+
+func (r *RatingRepository) GetUserRelationship(ctx context.Context, viewerID, userID int64) (string, error) {
+	return r.queries.GetUserRelationship(ctx, gen.GetUserRelationshipParams{
+		Column1: viewerID,
+		Column2: userID,
+	})
 }
 
 func (r *RatingRepository) TitleExists(ctx context.Context, mediaType domain.MediaType, tmdbID int64) (bool, error) {

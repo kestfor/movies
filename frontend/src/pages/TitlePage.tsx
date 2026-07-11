@@ -4,7 +4,7 @@ import { api } from '../api/client';
 import { Comments } from '../components/Comments';
 import { RatingEditor } from '../components/RatingEditor';
 import { Poster, RatingCard, ScoreDetails } from '../components/TitleBits';
-import { EmptyState, ErrorState, LoadingState, PageHeader, ScorePill } from '../components/Ui';
+import { EmptyState, ErrorState, LoadingState, ScorePill } from '../components/Ui';
 import { haptic } from '../lib/telegram';
 
 export function TitlePage() {
@@ -62,7 +62,6 @@ export function TitlePage() {
 
   return (
     <>
-      <PageHeader title={title.title} subtitle={`${title.media_type === 'tv' ? 'Сериал' : 'Фильм'}${title.release_year ? ` · ${title.release_year}` : ''}`} />
       <section className="title-hero">
         <div className="title-hero__top">
           <Poster title={title} />
@@ -70,16 +69,16 @@ export function TitlePage() {
             <span className="muted">{title.media_type === 'tv' ? 'Сериал' : 'Фильм'}</span>
             <h2>{title.title}</h2>
             {title.release_year ? <p className="muted">{title.release_year}</p> : null}
-          </div>
-        </div>
-        <div className="title-hero__scores">
-          <div>
-            <span className="muted">Моя</span>
-            <ScorePill value={card.data.my_rating?.avg_score} />
-          </div>
-          <div>
-            <span className="muted">Друзья</span>
-            <ScorePill value={card.data.friends_avg?.overall} muted={!card.data.friends_avg} />
+            <div className="title-hero__scores">
+              <div>
+                <span className="muted">Моя</span>
+                <ScorePill value={card.data.my_rating?.avg_score} />
+              </div>
+              <div>
+                <span className="muted">Друзья</span>
+                <ScorePill value={card.data.friends_avg?.overall} muted={!card.data.friends_avg} />
+              </div>
+            </div>
           </div>
         </div>
         {title.genres?.length ? <p className="title-hero__genres muted">{title.genres.join(', ')}</p> : null}

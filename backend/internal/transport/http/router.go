@@ -137,7 +137,6 @@ func me(users UserGetter) gin.HandlerFunc {
 
 		c.JSON(http.StatusOK, gin.H{
 			"uuid":       fresh.UUID,
-			"tg_id":      fresh.TgID,
 			"username":   fresh.Username,
 			"first_name": fresh.FirstName,
 			"photo_url":  fresh.PhotoURL,

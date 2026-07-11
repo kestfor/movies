@@ -106,7 +106,11 @@ export async function getInitData(): Promise<string> {
 }
 
 export function getStartParam(): string {
-  return tg?.initDataUnsafe?.start_param || '';
+  const unsafeParam = tg?.initDataUnsafe?.start_param;
+  if (unsafeParam) return unsafeParam;
+
+  const params = new URLSearchParams(window.location.search);
+  return params.get('tgWebAppStartParam') || '';
 }
 
 export function getInviteUserUUID(): string | null {

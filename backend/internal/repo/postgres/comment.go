@@ -162,6 +162,6 @@ func attachCommentUser(ctx context.Context, q *gen.Queries, comment *domain.Comm
 	if err != nil {
 		return err
 	}
-	comment.User = toDomainUser(user)
+	comment.User = toDomainUserFields(user.ID, user.Uuid, user.TgID, user.Username, user.FirstName, user.PhotoUrl, user.CreatedAt)
 	return nil
 }

@@ -2,7 +2,6 @@ export type MediaType = 'movie' | 'tv';
 
 export type User = {
   uuid: string;
-  tg_id: number;
   username?: string;
   first_name: string;
   photo_url?: string;
@@ -94,6 +93,7 @@ export type FeedPage = {
 
 export type ProfileRatingsPage = {
   user: User;
+  relationship: 'self' | 'friend' | 'incoming' | 'outgoing' | 'none';
   ratings: Array<{
     title: Title;
     avg_score: number;

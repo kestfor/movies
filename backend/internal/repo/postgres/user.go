@@ -30,7 +30,7 @@ func (r *UserRepository) UpsertTelegramUser(ctx context.Context, params auth.Ups
 	if err != nil {
 		return domain.User{}, err
 	}
-	return toDomainUser(user), nil
+	return toDomainUserFields(user.ID, user.Uuid, user.TgID, user.Username, user.FirstName, user.PhotoUrl, user.CreatedAt), nil
 }
 
 func (r *UserRepository) GetByID(ctx context.Context, id int64) (domain.User, error) {
@@ -38,7 +38,7 @@ func (r *UserRepository) GetByID(ctx context.Context, id int64) (domain.User, er
 	if err != nil {
 		return domain.User{}, err
 	}
-	return toDomainUser(user), nil
+	return toDomainUserFields(user.ID, user.Uuid, user.TgID, user.Username, user.FirstName, user.PhotoUrl, user.CreatedAt), nil
 }
 
 func (r *UserRepository) GetByUUID(ctx context.Context, rawUUID string) (domain.User, bool, error) {
@@ -48,7 +48,7 @@ func (r *UserRepository) GetByUUID(ctx context.Context, rawUUID string) (domain.
 	}
 	user, err := r.queries.GetUserByUUID(ctx, uuid)
 	if err == nil {
-		return toDomainUser(user), true, nil
+		return toDomainUserFields(user.ID, user.Uuid, user.TgID, user.Username, user.FirstName, user.PhotoUrl, user.CreatedAt), true, nil
 	}
 	if errors.Is(err, pgx.ErrNoRows) {
 		return domain.User{}, false, nil
