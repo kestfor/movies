@@ -198,28 +198,40 @@ export function Accordion({
   summary,
   children,
   defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
+  action,
   className = '',
 }: {
   title: string;
   summary?: string;
   children: ReactNode;
   defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  action?: ReactNode;
   className?: string;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const toggle = () => {
+    const next = !open;
+    haptic('light');
+    if (onOpenChange) onOpenChange(next);
+    else setUncontrolledOpen(next);
+  };
+
   return (
     <div className={`accordion ${open ? 'accordion--open' : ''} ${className}`}>
       <button
         className="accordion__trigger"
         type="button"
-        onClick={() => {
-          haptic('light');
-          setOpen((value) => !value);
-        }}
+        onClick={toggle}
         aria-expanded={open}
       >
         <span>{title}</span>
         {summary ? <span className="muted">{summary}</span> : null}
+        {action ? <span className="accordion__action">{action}</span> : null}
         <ChevronDown className="accordion__icon" size={17} aria-hidden="true" />
       </button>
       <div className="accordion__content">

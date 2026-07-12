@@ -9,12 +9,16 @@ export function RatingEditor({
   criteria,
   rating,
   saving,
+  open,
+  onOpenChange,
   onSave,
   onDelete,
 }: {
   criteria: Criterion[];
   rating?: RatingWithUser | null;
   saving?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   onSave: (scores: Record<string, number>) => void;
   onDelete: () => void;
 }) {
@@ -67,7 +71,14 @@ export function RatingEditor({
           </button>
         ) : null}
       </div>
-      <Accordion title={rating ? 'Изменить оценку' : 'Поставить оценку'} summary={`${Object.keys(scores).length}/${criteria.length}`} defaultOpen={!rating} className="rating-editor__accordion">
+      <Accordion
+        title={rating ? 'Изменить оценку' : 'Поставить оценку'}
+        summary={`${Object.keys(scores).length}/${criteria.length}`}
+        defaultOpen={!rating}
+        open={open}
+        onOpenChange={onOpenChange}
+        className="rating-editor__accordion"
+      >
         <div className="sliders">
           {criteria.map((criterion) => (
             <div key={criterion.code} className={`slider-row ${openHint === criterion.code ? 'slider-row--hint-open' : ''}`}>

@@ -5,11 +5,13 @@ import { api } from '../api/client';
 import { Avatar, formatRatingDate } from '../components/TitleBits';
 import { Button, EmptyState, ErrorState, LoadingState, PageHeader, ScorePill } from '../components/Ui';
 import { haptic } from '../lib/telegram';
+import { useToast } from '../components/Toast';
 import type { NotificationItem } from '../types/api';
 
 export function NotificationsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { showToast, showError } = useToast();
   const notifications = useInfiniteQuery({
     queryKey: ['notifications', 'list'],
     queryFn: ({ pageParam }) => api.notifications(pageParam),
@@ -23,12 +25,21 @@ export function NotificationsPage() {
       haptic('light');
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
+    onError: (error) => {
+      haptic('error');
+      showError(error, 'Уведомление не отмечено');
+    },
   });
   const markAllRead = useMutation({
     mutationFn: api.markAllNotificationsRead,
     onSuccess: () => {
       haptic('success');
+      showToast('Уведомления прочитаны');
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+    onError: (error) => {
+      haptic('error');
+      showError(error, 'Уведомления не обновлены');
     },
   });
 

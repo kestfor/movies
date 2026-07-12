@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { Comments } from '../components/Comments';
 import { RatingEditor } from '../components/RatingEditor';
-import { Poster, RatingCard, ScoreDetails } from '../components/TitleBits';
+import { Accordion, Poster, RatingCard, ScoreDetails } from '../components/TitleBits';
 import { EmptyState, ErrorState, LoadingState, ScorePill } from '../components/Ui';
+import { useToast } from '../components/Toast';
 import { getActiveTitleTransitionByRef, getActiveTitleTransitionNameByRef } from '../lib/transitions';
 import type { TitleTransitionSnapshot } from '../lib/transitions';
 import { haptic } from '../lib/telegram';
@@ -14,6 +16,8 @@ export function TitlePage() {
   const { type = '', id = '' } = useParams();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
+  const { showToast, showError } = useToast();
+  const [ratingEditorOpen, setRatingEditorOpen] = useState<boolean | undefined>(undefined);
   const titleKey = ['title', type, id];
   const commentsKey = ['comments', type, id];
   const card = useQuery({ queryKey: titleKey, queryFn: () => api.title(type, id) });
@@ -33,42 +37,64 @@ export function TitlePage() {
     mutationFn: (scores: Record<string, number>) => api.putRating(type, id, scores),
     onSuccess: () => {
       haptic('success');
+      showToast('Оценка сохранена');
+      setRatingEditorOpen(false);
       refreshTitle();
     },
-    onError: () => haptic('error'),
+    onError: (error) => {
+      haptic('error');
+      showError(error, 'Оценку не удалось сохранить');
+    },
   });
   const deleteRating = useMutation({
     mutationFn: () => api.deleteRating(type, id),
     onSuccess: () => {
       haptic('success');
+      showToast('Оценка удалена', 'warning');
+      setRatingEditorOpen(true);
       refreshTitle();
     },
-    onError: () => haptic('error'),
+    onError: (error) => {
+      haptic('error');
+      showError(error, 'Оценку не удалось удалить');
+    },
   });
   const createComment = useMutation({
     mutationFn: ({ body, parentID }: { body: string; parentID?: number }) => api.postComment(type, id, body, parentID),
     onSuccess: () => {
       haptic('success');
+      showToast('Комментарий отправлен');
       queryClient.invalidateQueries({ queryKey: commentsKey });
       queryClient.invalidateQueries({ queryKey: titleKey });
     },
-    onError: () => haptic('error'),
+    onError: (error) => {
+      haptic('error');
+      showError(error, 'Комментарий не отправлен');
+    },
   });
   const updateComment = useMutation({
     mutationFn: ({ commentID, body }: { commentID: number; body: string }) => api.patchComment(commentID, body),
     onSuccess: () => {
       haptic('success');
+      showToast('Комментарий обновлён');
       queryClient.invalidateQueries({ queryKey: commentsKey });
     },
-    onError: () => haptic('error'),
+    onError: (error) => {
+      haptic('error');
+      showError(error, 'Комментарий не обновлён');
+    },
   });
   const removeComment = useMutation({
     mutationFn: (commentID: number) => api.deleteComment(commentID),
     onSuccess: () => {
       haptic('success');
+      showToast('Комментарий удалён', 'warning');
       queryClient.invalidateQueries({ queryKey: commentsKey });
     },
-    onError: () => haptic('error'),
+    onError: (error) => {
+      haptic('error');
+      showError(error, 'Комментарий не удалён');
+    },
   });
 
   if (card.isLoading || criteria.isLoading) {
@@ -84,6 +110,7 @@ export function TitlePage() {
 
   const title = card.data.title;
   const labels = Object.fromEntries(criteria.data.criteria.map((criterion) => [criterion.code, criterion.name]));
+  const editorOpen = ratingEditorOpen ?? !card.data.my_rating;
   const sharedTransitionStyle = sharedTransitionName
     ? ({ viewTransitionName: sharedTransitionName } as CSSProperties)
     : undefined;
@@ -118,36 +145,41 @@ export function TitlePage() {
         criteria={criteria.data.criteria}
         rating={card.data.my_rating}
         saving={saveRating.isPending}
+        open={editorOpen}
+        onOpenChange={setRatingEditorOpen}
         onSave={(scores) => saveRating.mutate(scores)}
         onDelete={() => deleteRating.mutate()}
       />
       {card.data.friends_avg ? (
         <section className="panel">
-          <div className="panel__header">
-            <div>
-              <h2>Средняя друзей</h2>
-              <p>По заполненным критериям</p>
-            </div>
-            <ScorePill value={card.data.friends_avg.overall} />
-          </div>
-          <ScoreDetails scores={card.data.friends_avg.by_criteria} labels={labels} />
+          <Accordion
+            title="Средняя друзей"
+            summary="По критериям"
+            action={<ScorePill value={card.data.friends_avg.overall} />}
+            defaultOpen={false}
+          >
+            <ScoreDetails scores={card.data.friends_avg.by_criteria} labels={labels} />
+          </Accordion>
         </section>
       ) : null}
       <section className="panel">
-        <div className="panel__header">
-          <div>
-            <h2>Оценки друзей</h2>
-            <p>{card.data.friends_ratings.length || 'Пока нет'}</p>
-          </div>
-        </div>
         {card.data.friends_ratings.length ? (
-          <div className="stack tight">
-            {card.data.friends_ratings.map((rating) => (
-              <RatingCard key={rating.user.uuid} rating={rating} labels={labels} />
-            ))}
-          </div>
+          <Accordion title="Оценки друзей" defaultOpen={false}>
+            <div className="stack tight">
+              {card.data.friends_ratings.map((rating) => (
+                <RatingCard key={rating.user.uuid} rating={rating} labels={labels} />
+              ))}
+            </div>
+          </Accordion>
         ) : (
-          <p className="muted">Оценки появятся после добавления друзей.</p>
+          <>
+            <div className="panel__header">
+              <div>
+                <h2>Оценки друзей</h2>
+              </div>
+            </div>
+            <p className="muted">Оценки появятся после добавления друзей.</p>
+          </>
         )}
       </section>
       {comments.isLoading ? <LoadingState label="Загружаем комментарии" /> : null}
