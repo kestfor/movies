@@ -1,7 +1,18 @@
 import { Film, Search, Users, UserRound } from 'lucide-react';
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { tg } from '../lib/telegram';
+import {
+  clearActiveTitleTransition,
+  consumePreserveScroll,
+  consumeSuppressPageTransition,
+  getActiveTitleTransitionByRef,
+  preserveNextScroll,
+  startViewTransition,
+  suppressNextPageTransition,
+  titleTransitionNameFromRef,
+} from '../lib/transitions';
 
 const tabs = [
   { to: '/feed', label: 'Лента', icon: Film },
@@ -14,10 +25,26 @@ export function Shell() {
   const location = useLocation();
   const navigate = useNavigate();
   const navigationType = useNavigationType();
-  const pageDirection = navigationType === 'POP' ? 'back' : 'forward';
+  const routeState = location.state as { pageDirection?: string } | null;
+  const pageDirection = routeState?.pageDirection || (navigationType === 'POP' ? 'back' : 'forward');
+  const didMount = useRef(false);
+  const suppressPageTransition = consumeSuppressPageTransition();
 
   useEffect(() => {
-    const back = () => navigate(-1);
+    didMount.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!didMount.current) return;
+    if (consumePreserveScroll()) return;
+    window.scrollTo(0, 0);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    const back = () => {
+      if (runTitleBackTransition(location.pathname, navigate)) return;
+      navigate(-1);
+    };
     if (location.pathname === '/feed') {
       tg?.BackButton?.hide();
       return;
@@ -30,15 +57,34 @@ export function Shell() {
   return (
     <div className="app-shell">
       <main className="content">
-        <div key={location.key} className={`page-transition page-transition--${pageDirection}`}>
+        <div
+          key={location.key}
+          className={
+            didMount.current && !suppressPageTransition
+              ? `page-transition page-transition--${pageDirection}`
+              : 'page-transition'
+          }
+        >
           <Outlet />
         </div>
       </main>
       <nav className="tabbar" aria-label="Основная навигация">
         {tabs.map((tab) => {
           const Icon = tab.icon;
+          const currentIndex = tabIndexForPath(location.pathname);
+          const nextIndex = tabs.findIndex((item) => item.to === tab.to);
+          const direction = currentIndex >= 0 && nextIndex > currentIndex ? 'tab-forward' : 'tab-back';
           return (
-            <NavLink key={tab.to} to={tab.to} className="tabbar__item">
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              className="tabbar__item"
+              onClick={(event) => {
+                if (currentIndex === nextIndex) return;
+                event.preventDefault();
+                navigate(tab.to, { state: { pageDirection: direction } });
+              }}
+            >
               <Icon size={20} aria-hidden />
               <span>{tab.label}</span>
             </NavLink>
@@ -46,5 +92,55 @@ export function Shell() {
         })}
       </nav>
     </div>
+  );
+}
+
+function tabIndexForPath(pathname: string) {
+  if (pathname === '/feed') return 0;
+  if (pathname.startsWith('/search')) return 1;
+  if (pathname.startsWith('/friends')) return 2;
+  if (pathname.startsWith('/profile')) return 3;
+  return -1;
+}
+
+function runTitleBackTransition(pathname: string, navigate: ReturnType<typeof useNavigate>) {
+  const match = pathname.match(/^\/title\/([^/]+)\/([^/]+)/);
+  if (!match) return false;
+
+  const [, mediaType, tmdbID] = match;
+  const active = getActiveTitleTransitionByRef(mediaType, tmdbID);
+  if (!active) return false;
+
+  const hero = document.querySelector<HTMLElement>('.title-hero');
+  const transitionName = titleTransitionNameFromRef(mediaType, tmdbID);
+  hero?.style.setProperty('view-transition-name', transitionName);
+
+  let target: HTMLElement | undefined;
+  const transition = startViewTransition(() => {
+    suppressNextPageTransition();
+    preserveNextScroll();
+    flushSync(() => navigate(-1));
+    window.scrollTo(0, active.sourceScrollY);
+    target = findTitleRow(active.ref);
+    target?.style.setProperty('view-transition-name', transitionName);
+  });
+
+  if (!transition) {
+    hero?.style.removeProperty('view-transition-name');
+    clearActiveTitleTransition();
+    return true;
+  }
+
+  transition.finished.finally(() => {
+    hero?.style.removeProperty('view-transition-name');
+    target?.style.removeProperty('view-transition-name');
+    clearActiveTitleTransition();
+  });
+  return true;
+}
+
+function findTitleRow(ref: string) {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-title-transition-id]')).find(
+    (element) => element.dataset.titleTransitionId === ref,
   );
 }

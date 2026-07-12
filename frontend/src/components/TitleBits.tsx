@@ -1,11 +1,19 @@
 import { ChevronDown } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { MouseEvent, ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
-import { setActiveTitleTransition, startViewTransition, titleTransitionName } from '../lib/transitions';
+import {
+  setActiveTitleTransition,
+  startViewTransition,
+  suppressNextPageTransition,
+  titleRef,
+  titleTransitionName,
+} from '../lib/transitions';
 import type { FeedItem, RatingWithUser, Title, User } from '../types/api';
 import { ScorePill } from './Ui';
+import { api } from '../api/client';
 
 export const posterURL = (path?: string) => path || '';
 
@@ -20,30 +28,57 @@ export function Poster({ title }: { title: Title }) {
 
 export function TitleRow({ title, score }: { title: Title; score?: number }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [opening, setOpening] = useState(false);
   const to = `/title/${title.media_type}/${title.tmdb_id}`;
 
-  const openTitle = (event: MouseEvent<HTMLAnchorElement>) => {
+  const openTitle = async (event: MouseEvent<HTMLAnchorElement>) => {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
 
     event.preventDefault();
+    if (opening) return;
+
     const target = event.currentTarget;
     setActiveTitleTransition(title);
+    setOpening(true);
+
+    try {
+      await queryClient.ensureQueryData({
+        queryKey: ['title', title.media_type, String(title.tmdb_id)],
+        queryFn: () => api.title(title.media_type, title.tmdb_id),
+      });
+    } catch {
+      setOpening(false);
+      suppressNextPageTransition();
+      navigate(to, { state: { pageDirection: 'forward' } });
+      return;
+    }
+
     target.style.setProperty('view-transition-name', titleTransitionName(title));
 
     const transition = startViewTransition(() => {
-      flushSync(() => navigate(to));
+      suppressNextPageTransition();
+      flushSync(() => navigate(to, { state: { pageDirection: 'forward' } }));
     });
     if (!transition) {
       target.style.removeProperty('view-transition-name');
+      setOpening(false);
       return;
     }
     transition.finished.finally(() => {
       target.style.removeProperty('view-transition-name');
+      setOpening(false);
     });
   };
 
   return (
-    <Link className="title-row" to={to} onClick={openTitle}>
+    <Link
+      className={`title-row ${opening ? 'title-row--opening' : ''}`}
+      to={to}
+      data-title-transition-id={titleRef(title.media_type, title.tmdb_id)}
+      onClick={openTitle}
+      aria-busy={opening}
+    >
       <Poster title={title} />
       <div className="title-row__body">
         <div className="title-row__title">{title.title}</div>
