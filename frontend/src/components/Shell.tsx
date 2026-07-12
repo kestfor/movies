@@ -1,5 +1,5 @@
 import { Film, Search, Users, UserRound } from 'lucide-react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { useEffect } from 'react';
 import { tg } from '../lib/telegram';
 
@@ -13,6 +13,8 @@ const tabs = [
 export function Shell() {
   const location = useLocation();
   const navigate = useNavigate();
+  const navigationType = useNavigationType();
+  const pageDirection = navigationType === 'POP' ? 'back' : 'forward';
 
   useEffect(() => {
     const back = () => navigate(-1);
@@ -28,7 +30,9 @@ export function Shell() {
   return (
     <div className="app-shell">
       <main className="content">
-        <Outlet />
+        <div key={location.key} className={`page-transition page-transition--${pageDirection}`}>
+          <Outlet />
+        </div>
       </main>
       <nav className="tabbar" aria-label="Основная навигация">
         {tabs.map((tab) => {

@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { Comments } from '../components/Comments';
 import { RatingEditor } from '../components/RatingEditor';
 import { Poster, RatingCard, ScoreDetails } from '../components/TitleBits';
 import { EmptyState, ErrorState, LoadingState, ScorePill } from '../components/Ui';
+import { clearActiveTitleTransition, getActiveTitleTransitionNameByRef } from '../lib/transitions';
 import { haptic } from '../lib/telegram';
 
 export function TitlePage() {
@@ -16,6 +19,7 @@ export function TitlePage() {
   const comments = useQuery({ queryKey: commentsKey, queryFn: () => api.comments(type, id) });
   const criteria = useQuery({ queryKey: ['criteria'], queryFn: api.criteria });
   const me = useQuery({ queryKey: ['me'], queryFn: api.me });
+  const [sharedTransitionName, setSharedTransitionName] = useState(() => getActiveTitleTransitionNameByRef(type, id));
 
   const refreshTitle = () => {
     queryClient.invalidateQueries({ queryKey: titleKey });
@@ -51,6 +55,16 @@ export function TitlePage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: commentsKey }),
   });
 
+  useEffect(() => {
+    if (!sharedTransitionName) return;
+    const timeout = window.setTimeout(() => {
+      clearActiveTitleTransition();
+      setSharedTransitionName(undefined);
+    }, 420);
+
+    return () => window.clearTimeout(timeout);
+  }, [sharedTransitionName]);
+
   if (card.isLoading || criteria.isLoading) return <LoadingState label="Открываем карточку" />;
   if (card.isError) return <ErrorState error={card.error} />;
   if (criteria.isError) return <ErrorState error={criteria.error} />;
@@ -59,10 +73,16 @@ export function TitlePage() {
 
   const title = card.data.title;
   const labels = Object.fromEntries(criteria.data.criteria.map((criterion) => [criterion.code, criterion.name]));
+  const sharedTransitionStyle = sharedTransitionName
+    ? ({ viewTransitionName: sharedTransitionName } as CSSProperties)
+    : undefined;
 
   return (
     <>
-      <section className="title-hero">
+      <section
+        className={`title-hero ${sharedTransitionName ? 'title-hero--shared' : ''}`}
+        style={sharedTransitionStyle}
+      >
         <div className="title-hero__top">
           <Poster title={title} />
           <div className="title-hero__name">

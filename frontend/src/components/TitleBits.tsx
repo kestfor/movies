@@ -1,7 +1,9 @@
 import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
-import type { ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import type { MouseEvent, ReactNode } from 'react';
+import { flushSync } from 'react-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { setActiveTitleTransition, startViewTransition, titleTransitionName } from '../lib/transitions';
 import type { FeedItem, RatingWithUser, Title, User } from '../types/api';
 import { ScorePill } from './Ui';
 
@@ -17,8 +19,31 @@ export function Poster({ title }: { title: Title }) {
 }
 
 export function TitleRow({ title, score }: { title: Title; score?: number }) {
+  const navigate = useNavigate();
+  const to = `/title/${title.media_type}/${title.tmdb_id}`;
+
+  const openTitle = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+
+    event.preventDefault();
+    const target = event.currentTarget;
+    setActiveTitleTransition(title);
+    target.style.setProperty('view-transition-name', titleTransitionName(title));
+
+    const transition = startViewTransition(() => {
+      flushSync(() => navigate(to));
+    });
+    if (!transition) {
+      target.style.removeProperty('view-transition-name');
+      return;
+    }
+    transition.finished.finally(() => {
+      target.style.removeProperty('view-transition-name');
+    });
+  };
+
   return (
-    <Link className="title-row" to={`/title/${title.media_type}/${title.tmdb_id}`}>
+    <Link className="title-row" to={to} onClick={openTitle}>
       <Poster title={title} />
       <div className="title-row__body">
         <div className="title-row__title">{title.title}</div>
@@ -39,11 +64,13 @@ export function FeedCard({ item, labels }: { item: FeedItem; labels?: Record<str
       <div className="feed-card__user">
         <div className="feed-card__actor">
           <UserLink user={item.user} />
-          <span className="muted">поставил(а) оценку</span>
+          <div className="feed-card__event">
+            <span>поставил(а) оценку</span>
+            <span className="rating-date">{formatRatingDate(item.created_at, item.updated_at)}</span>
+          </div>
         </div>
         <ScorePill value={item.avg_score} />
       </div>
-      <div className="rating-date">{formatRatingDate(item.created_at, item.updated_at)}</div>
       <TitleRow title={item.title} />
       <Accordion title="Детали оценки" summary={`${Object.keys(item.scores).length} оценок`}>
         <ScoreDetails scores={item.scores} labels={labels} />
@@ -60,8 +87,8 @@ export function UserLink({ user, compact = false }: { user: User; compact?: bool
   const content = (
     <>
       <Avatar name={user.first_name} url={user.photo_url} />
-      <span>{user.first_name}</span>
-      {!compact && user.username ? <span className="muted">@{user.username}</span> : null}
+      <span className="user-link__name">{user.first_name}</span>
+      {!compact && user.username ? <span className="user-link__username muted">@{user.username}</span> : null}
     </>
   );
 
