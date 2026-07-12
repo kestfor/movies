@@ -1,3 +1,10 @@
+x-db-env: &db-env
+  POSTGRES_DB: ${POSTGRES_DB:-movies}
+  POSTGRES_USER: ${POSTGRES_USER:-movies}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-movies}
+
+x-database-url: &database-url postgres://${POSTGRES_USER:-movies}:${POSTGRES_PASSWORD:-movies}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-movies}?sslmode=disable
+
 services:
   frontend:
     build:
@@ -25,7 +32,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgres://movies:movies@postgres:5432/movies?sslmode=disable
+      DATABASE_URL: *database-url
       BOT_TOKEN: ${TG_BOT_TOKEN:-}
       AUTH_TTL: 1h
       TMDB_API_TOKEN: ${TMDB_API_TOKEN:-}
@@ -40,14 +47,36 @@ services:
       timeout: 5s
       retries: 5
 
+  backup-bot:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: movies-backup-bot
+    command: [ "/app/backupbot" ]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: *database-url
+      BOT_TOKEN: ${TG_BOT_TOKEN:-}
+      BACKUP_ENABLED: ${BACKUP_ENABLED:-true}
+      BACKUP_SCHEDULE_ENABLED: ${BACKUP_SCHEDULE_ENABLED:-true}
+      BACKUP_ADMIN_CHAT_IDS: ${BACKUP_ADMIN_CHAT_IDS:-}
+      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-03:00}
+      BACKUP_TIMEZONE: ${BACKUP_TIMEZONE:-Asia/Krasnoyarsk}
+      BACKUP_DATABASE_URL: *database-url
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
   migrate:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: movies-migrate
     environment:
-      DATABASE_URL: postgres://movies:movies@postgres:5432/movies?sslmode=disable
-    command: [ "/app/tern", "migrate", "--conn-string", "postgres://movies:movies@postgres:5432/movies?sslmode=disable", "--migrations", "/app/migrations" ]
+      DATABASE_URL: *database-url
+    command: [ "/app/tern", "migrate", "--conn-string", *database-url, "--migrations", "/app/migrations" ]
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,9 +86,7 @@ services:
     image: postgres:17-alpine
     container_name: movies-postgres
     environment:
-      POSTGRES_DB: movies
-      POSTGRES_USER: movies
-      POSTGRES_PASSWORD: movies
+      <<: *db-env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
