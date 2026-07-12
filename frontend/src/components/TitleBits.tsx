@@ -138,20 +138,35 @@ export function UserLink({ user, compact = false }: { user: User; compact?: bool
 }
 
 export function RatingCard({ rating, labels }: { rating: RatingWithUser; labels?: Record<string, string> }) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <article className="rating-card">
-      <div className="rating-card__head">
+    <article className={`rating-card ${open ? 'rating-card--open' : ''}`}>
+      <button
+        className="rating-card__head"
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-label="Показать детали оценки"
+        aria-expanded={open}
+      >
         <div className="rating-card__meta">
           <span className="rating-card__user">
             <UserLink user={rating.user} compact />
           </span>
           <span className="rating-date">{formatRatingDate(rating.created_at, rating.updated_at)}</span>
         </div>
-        <ScorePill value={rating.avg_score} />
+        <div className="rating-card__actions">
+          <ScorePill value={rating.avg_score} />
+          <span className="rating-card__toggle" aria-hidden="true">
+            <ChevronDown size={17} aria-hidden="true" />
+          </span>
+        </div>
+      </button>
+      <div className="rating-card__details">
+        <div className="rating-card__details-inner">
+          <ScoreDetails scores={rating.scores} labels={labels} />
+        </div>
       </div>
-      <Accordion title="Разбивка оценки" summary={`${Object.keys(rating.scores).length} оценок`}>
-        <ScoreDetails scores={rating.scores} labels={labels} />
-      </Accordion>
     </article>
   );
 }

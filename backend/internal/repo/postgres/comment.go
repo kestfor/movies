@@ -76,6 +76,21 @@ func (r *CommentRepository) Create(ctx context.Context, params usecasecomments.C
 		return domain.Comment{}, err
 	}
 
+	eventID, err := q.CreateCommentActivityEvent(ctx, gen.CreateCommentActivityEventParams{
+		ActorID:   params.UserID,
+		TitleID:   titleID,
+		CommentID: toNullInt8(comment.ID),
+	})
+	if err != nil {
+		return domain.Comment{}, err
+	}
+	if err := q.DeliverActivityEventToFriends(ctx, gen.DeliverActivityEventToFriendsParams{
+		RequesterID: params.UserID,
+		EventID:     eventID,
+	}); err != nil {
+		return domain.Comment{}, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return domain.Comment{}, err
 	}

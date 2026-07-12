@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthGate } from './pages/AuthGate';
 import { FeedPage } from './pages/FeedPage';
 import { FriendsPage } from './pages/FriendsPage';
+import { NotificationsPage } from './pages/NotificationsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SearchPage } from './pages/SearchPage';
 import { TitlePage } from './pages/TitlePage';
@@ -13,6 +14,7 @@ export function App() {
       <Route element={<AuthGate />}>
         <Route element={<Shell />}>
           <Route path="/feed" element={<FeedPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/title/:type/:id" element={<TitlePage />} />
           <Route path="/friends" element={<FriendsPage />} />

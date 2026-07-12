@@ -92,6 +92,29 @@ export type FeedPage = {
   next_cursor?: string;
 };
 
+export type NotificationItem = {
+  event_id: number;
+  kind: 'rating_created' | 'comment_created';
+  actor: User;
+  title: Title;
+  rating?: {
+    id: number;
+    avg_score: number;
+  };
+  comment?: {
+    id: number;
+    body: string;
+  };
+  read_at?: string;
+  created_at: string;
+  deep_link: string;
+};
+
+export type NotificationsPage = {
+  items: NotificationItem[];
+  next_cursor?: string;
+};
+
 export type ProfileRatingsPage = {
   user: User;
   relationship: 'self' | 'friend' | 'incoming' | 'outgoing' | 'none';

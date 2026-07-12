@@ -173,6 +173,45 @@ Returns:
 
 Deletes current user's rating. Returns `204 No Content`.
 
+## Notifications
+
+### `GET /notifications?cursor=&limit=`
+
+Returns current user's delivered notifications, newest first.
+
+```json
+{
+  "items": [
+    {
+      "event_id": 1,
+      "kind": "comment_created",
+      "actor": { "uuid": "...", "first_name": "Анна" },
+      "title": { "tmdb_id": 550, "media_type": "movie", "title": "Бойцовский клуб" },
+      "comment": { "id": 16, "body": "Комментарий" },
+      "created_at": "2026-07-12T14:43:07Z",
+      "deep_link": "/title/movie/550?comment_id=16"
+    }
+  ],
+  "next_cursor": "..."
+}
+```
+
+### `GET /notifications/unread-count`
+
+Returns unread notification count.
+
+```json
+{ "count": 1 }
+```
+
+### `POST /notifications/:event_id/read`
+
+Marks one delivered notification as read. Returns `204 No Content`.
+
+### `POST /notifications/read-all`
+
+Marks all current user's unread notifications as read. Returns `204 No Content`.
+
 ## Comments
 
 ### `GET /titles/:type/:tmdb_id/comments`

@@ -1,5 +1,5 @@
 import { MessageCircle, Pencil, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Comment, User } from '../types/api';
 import { UserLink } from './TitleBits';
 import { Button } from './Ui';
@@ -8,6 +8,7 @@ export function Comments({
   comments,
   me,
   posting,
+  activeCommentID,
   onCreate,
   onUpdate,
   onDelete,
@@ -15,6 +16,7 @@ export function Comments({
   comments: Comment[];
   me?: User;
   posting?: boolean;
+  activeCommentID?: number;
   onCreate: (body: string, parentID?: number) => void;
   onUpdate: (id: number, body: string) => void;
   onDelete: (id: number) => void;
@@ -47,6 +49,7 @@ export function Comments({
           <CommentNode
             key={comment.id}
             comment={comment}
+            activeCommentID={activeCommentID}
             me={me}
             onCreate={onCreate}
             onUpdate={onUpdate}
@@ -64,9 +67,11 @@ function CommentNode({
   onCreate,
   onUpdate,
   onDelete,
+  activeCommentID,
 }: {
   comment: Comment;
   me?: User;
+  activeCommentID?: number;
   onCreate: (body: string, parentID?: number) => void;
   onUpdate: (id: number, body: string) => void;
   onDelete: (id: number) => void;
@@ -74,10 +79,17 @@ function CommentNode({
   const [replying, setReplying] = useState(false);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(comment.body);
+  const ref = useRef<HTMLElement | null>(null);
   const own = me?.uuid === comment.user.uuid;
+  const active = activeCommentID === comment.id;
+
+  useEffect(() => {
+    if (!active) return;
+    ref.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [active]);
 
   return (
-    <article className={`comment ${comment.parent_id ? 'comment--reply' : ''}`}>
+    <article ref={ref} id={`comment-${comment.id}`} className={`comment ${comment.parent_id ? 'comment--reply' : ''} ${active ? 'comment--active' : ''}`}>
       <div className="comment__head">
         <UserLink user={comment.user} compact />
         <time className="comment__date" dateTime={comment.created_at}>
@@ -128,7 +140,15 @@ function CommentNode({
       {comment.replies?.length ? (
         <div className="comment__replies">
           {comment.replies.map((reply) => (
-            <CommentNode key={reply.id} comment={reply} me={me} onCreate={onCreate} onUpdate={onUpdate} onDelete={onDelete} />
+            <CommentNode
+              key={reply.id}
+              comment={reply}
+              activeCommentID={activeCommentID}
+              me={me}
+              onCreate={onCreate}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+            />
           ))}
         </div>
       ) : null}

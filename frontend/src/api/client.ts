@@ -6,6 +6,7 @@ import type {
   FeedPage,
   FriendRequest,
   Friendship,
+  NotificationsPage,
   ProfileRatingsPage,
   Rating,
   SearchPage,
@@ -107,5 +108,10 @@ export const api = {
     request<void>(`/friends/requests/${userUUID}`, { method: 'DELETE' }),
   deleteFriend: (userUUID: string) => request<void>(`/friends/${userUUID}`, { method: 'DELETE' }),
   feed: (cursor?: string, limit = 20) => request<FeedPage>(`/feed${qs({ cursor, limit })}`),
+  notifications: (cursor?: string, limit = 20) => request<NotificationsPage>(`/notifications${qs({ cursor, limit })}`),
+  unreadNotificationsCount: () => request<{ count: number }>('/notifications/unread-count'),
+  markNotificationRead: (eventID: number) =>
+    request<void>(`/notifications/${eventID}/read`, { method: 'POST' }),
+  markAllNotificationsRead: () => request<void>('/notifications/read-all', { method: 'POST' }),
   profileRatings: (userUUID: string) => request<ProfileRatingsPage>(`/users/${userUUID}/ratings`),
 };

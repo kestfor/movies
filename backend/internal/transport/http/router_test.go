@@ -163,6 +163,28 @@ func (f fakeFeedLister) List(context.Context, int64, string, int) (domain.FeedPa
 	return f.page, f.err
 }
 
+type fakeNotificationManager struct {
+	page  domain.NotificationsPage
+	count int64
+	err   error
+}
+
+func (f fakeNotificationManager) List(context.Context, int64, string, int) (domain.NotificationsPage, error) {
+	return f.page, f.err
+}
+
+func (f fakeNotificationManager) CountUnread(context.Context, int64) (int64, error) {
+	return f.count, f.err
+}
+
+func (f fakeNotificationManager) MarkRead(context.Context, int64, int64) error {
+	return f.err
+}
+
+func (f fakeNotificationManager) MarkAllRead(context.Context, int64) error {
+	return f.err
+}
+
 func TestMeReturnsCurrentUser(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -175,7 +197,7 @@ func TestMeReturnsCurrentUser(t *testing.T) {
 		PhotoURL:  "https://photo",
 		CreatedAt: time.Unix(1, 0).UTC(),
 	}
-	router := NewRouter(fakeAuthenticator{user: want}, fakeUserGetter{user: want}, fakeTitleSearcher{}, fakeCriteriaLister{}, fakeRatingManager{}, fakeCommentManager{}, fakeFriendManager{}, fakeFeedLister{})
+	router := NewRouter(fakeAuthenticator{user: want}, fakeUserGetter{user: want}, fakeTitleSearcher{}, fakeCriteriaLister{}, fakeRatingManager{}, fakeCommentManager{}, fakeFriendManager{}, fakeFeedLister{}, fakeNotificationManager{})
 
 	req := httptest.NewRequest(http.MethodGet, "/me", nil)
 	req.Header.Set("Authorization", "tma init-data")
@@ -205,7 +227,7 @@ func TestMeReturnsCurrentUser(t *testing.T) {
 func TestMeRejectsMissingAuthHeader(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	router := NewRouter(fakeAuthenticator{}, fakeUserGetter{}, fakeTitleSearcher{}, fakeCriteriaLister{}, fakeRatingManager{}, fakeCommentManager{}, fakeFriendManager{}, fakeFeedLister{})
+	router := NewRouter(fakeAuthenticator{}, fakeUserGetter{}, fakeTitleSearcher{}, fakeCriteriaLister{}, fakeRatingManager{}, fakeCommentManager{}, fakeFriendManager{}, fakeFeedLister{}, fakeNotificationManager{})
 
 	req := httptest.NewRequest(http.MethodGet, "/me", nil)
 	rec := httptest.NewRecorder()
@@ -238,6 +260,7 @@ func TestSearchReturnsResults(t *testing.T) {
 		fakeCommentManager{},
 		fakeFriendManager{},
 		fakeFeedLister{},
+		fakeNotificationManager{},
 	)
 
 	req := httptest.NewRequest(http.MethodGet, "/search?q=matrix&page=1", nil)
@@ -273,6 +296,7 @@ func TestUserSearchReturnsRelationshipResults(t *testing.T) {
 		fakeCommentManager{},
 		fakeFriendManager{},
 		fakeFeedLister{},
+		fakeNotificationManager{},
 	)
 
 	req := httptest.NewRequest(http.MethodGet, "/users/search?q=iv", nil)
@@ -306,6 +330,7 @@ func TestGetTitleReturnsTitle(t *testing.T) {
 		fakeCommentManager{},
 		fakeFriendManager{},
 		fakeFeedLister{},
+		fakeNotificationManager{},
 	)
 
 	req := httptest.NewRequest(http.MethodGet, "/titles/movie/603", nil)

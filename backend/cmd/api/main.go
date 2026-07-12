@@ -16,6 +16,7 @@ import (
 	usecasecriteria "movies/backend/internal/usecase/criteria"
 	usecasefeed "movies/backend/internal/usecase/feed"
 	usecasefriends "movies/backend/internal/usecase/friends"
+	usecasenotifications "movies/backend/internal/usecase/notifications"
 	usecaseratings "movies/backend/internal/usecase/ratings"
 	usecasetitles "movies/backend/internal/usecase/titles"
 
@@ -50,8 +51,10 @@ func main() {
 	friendSvc := usecasefriends.NewService(friendRepo)
 	feedRepo := postgresrepo.NewFeedRepository(queries)
 	feedSvc := usecasefeed.NewService(feedRepo)
+	notificationRepo := postgresrepo.NewNotificationRepository(queries)
+	notificationSvc := usecasenotifications.NewService(notificationRepo)
 
-	router := httptransport.NewRouter(authSvc, userRepo, titleSvc, criteriaSvc, ratingSvc, commentSvc, friendSvc, feedSvc)
+	router := httptransport.NewRouter(authSvc, userRepo, titleSvc, criteriaSvc, ratingSvc, commentSvc, friendSvc, feedSvc, notificationSvc)
 	logger.Info("starting api", "addr", cfg.HTTPAddr)
 	if err := router.Run(cfg.HTTPAddr); err != nil {
 		logger.Error("api stopped", "error", err)

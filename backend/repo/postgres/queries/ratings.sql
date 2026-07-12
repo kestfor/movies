@@ -9,7 +9,7 @@ VALUES ($1, $2, $3::numeric, now())
 ON CONFLICT (user_id, title_id) DO UPDATE
 SET avg_score = EXCLUDED.avg_score,
     updated_at = now()
-RETURNING id, user_id, title_id, avg_score, created_at, updated_at;
+RETURNING id, user_id, title_id, avg_score, created_at, updated_at, (xmax = 0)::boolean AS inserted;
 
 -- name: DeleteRatingScores :exec
 DELETE FROM rating_scores

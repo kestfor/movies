@@ -11,6 +11,48 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ActivityEventKind string
+
+const (
+	ActivityEventKindRatingCreated  ActivityEventKind = "rating_created"
+	ActivityEventKindCommentCreated ActivityEventKind = "comment_created"
+)
+
+func (e *ActivityEventKind) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ActivityEventKind(s)
+	case string:
+		*e = ActivityEventKind(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ActivityEventKind: %T", src)
+	}
+	return nil
+}
+
+type NullActivityEventKind struct {
+	ActivityEventKind ActivityEventKind
+	Valid             bool // Valid is true if ActivityEventKind is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullActivityEventKind) Scan(value interface{}) error {
+	if value == nil {
+		ns.ActivityEventKind, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ActivityEventKind.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullActivityEventKind) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ActivityEventKind), nil
+}
+
 type FriendshipStatus string
 
 const (
@@ -95,6 +137,16 @@ func (ns NullMediaType) Value() (driver.Value, error) {
 	return string(ns.MediaType), nil
 }
 
+type ActivityEvent struct {
+	ID        int64
+	ActorID   int64
+	TitleID   int64
+	Kind      ActivityEventKind
+	RatingID  pgtype.Int8
+	CommentID pgtype.Int8
+	CreatedAt pgtype.Timestamptz
+}
+
 type BackupSetting struct {
 	Key       string
 	Value     string
@@ -127,6 +179,12 @@ type Friendship struct {
 	Status      FriendshipStatus
 	CreatedAt   pgtype.Timestamptz
 	RespondedAt pgtype.Timestamptz
+}
+
+type NotificationDelivery struct {
+	UserID  int64
+	EventID int64
+	ReadAt  pgtype.Timestamptz
 }
 
 type Rating struct {

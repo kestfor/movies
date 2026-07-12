@@ -369,7 +369,7 @@ VALUES ($1, $2, $3::numeric, now())
 ON CONFLICT (user_id, title_id) DO UPDATE
 SET avg_score = EXCLUDED.avg_score,
     updated_at = now()
-RETURNING id, user_id, title_id, avg_score, created_at, updated_at
+RETURNING id, user_id, title_id, avg_score, created_at, updated_at, (xmax = 0)::boolean AS inserted
 `
 
 type UpsertRatingParams struct {
@@ -378,9 +378,19 @@ type UpsertRatingParams struct {
 	Column3 pgtype.Numeric
 }
 
-func (q *Queries) UpsertRating(ctx context.Context, arg UpsertRatingParams) (Rating, error) {
+type UpsertRatingRow struct {
+	ID        int64
+	UserID    int64
+	TitleID   int64
+	AvgScore  pgtype.Numeric
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	Inserted  bool
+}
+
+func (q *Queries) UpsertRating(ctx context.Context, arg UpsertRatingParams) (UpsertRatingRow, error) {
 	row := q.db.QueryRow(ctx, upsertRating, arg.UserID, arg.TitleID, arg.Column3)
-	var i Rating
+	var i UpsertRatingRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -388,6 +398,7 @@ func (q *Queries) UpsertRating(ctx context.Context, arg UpsertRatingParams) (Rat
 		&i.AvgScore,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Inserted,
 	)
 	return i, err
 }

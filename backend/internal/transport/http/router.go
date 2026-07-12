@@ -9,6 +9,7 @@ import (
 
 	"movies/backend/internal/domain"
 	"movies/backend/internal/usecase/auth"
+	"movies/backend/internal/usecase/notifications"
 
 	"github.com/gin-gonic/gin"
 )
@@ -63,7 +64,14 @@ type FeedLister interface {
 	List(ctx context.Context, userID int64, cursor string, limit int) (domain.FeedPage, error)
 }
 
-func NewRouter(authSvc Authenticator, users UserGetter, titles TitleSearcher, criteria CriteriaLister, ratings RatingManager, comments CommentManager, friends FriendManager, feed FeedLister) *gin.Engine {
+type NotificationManager interface {
+	List(ctx context.Context, userID int64, cursor string, limit int) (domain.NotificationsPage, error)
+	CountUnread(ctx context.Context, userID int64) (int64, error)
+	MarkRead(ctx context.Context, userID, eventID int64) error
+	MarkAllRead(ctx context.Context, userID int64) error
+}
+
+func NewRouter(authSvc Authenticator, users UserGetter, titles TitleSearcher, criteria CriteriaLister, ratings RatingManager, comments CommentManager, friends FriendManager, feed FeedLister, notificationManager NotificationManager) *gin.Engine {
 	router := gin.New()
 	_ = router.SetTrustedProxies(nil)
 	router.Use(gin.Logger(), requestErrorLogger(slog.Default()), gin.Recovery())
@@ -88,8 +96,25 @@ func NewRouter(authSvc Authenticator, users UserGetter, titles TitleSearcher, cr
 	router.DELETE("/friends/:user_uuid", authMiddleware(authSvc), deleteFriend(friends))
 	router.GET("/users/:id/ratings", authMiddleware(authSvc), listUserRatings(ratings))
 	router.GET("/feed", authMiddleware(authSvc), listFeed(feed))
+	router.GET("/notifications", authMiddleware(authSvc), listNotifications(notificationManager))
+	router.GET("/notifications/unread-count", authMiddleware(authSvc), unreadNotificationsCount(notificationManager))
+	router.POST("/notifications/:event_id/read", authMiddleware(authSvc), markNotificationRead(notificationManager))
+	router.POST("/notifications/read-all", authMiddleware(authSvc), markAllNotificationsRead(notificationManager))
 
 	return router
+}
+
+func notificationError(c *gin.Context, err error) {
+	if errors.Is(err, notifications.ErrValidation) {
+		c.JSON(http.StatusUnprocessableEntity, errorResponse("validation_failed", "invalid request"))
+		return
+	}
+	if errors.Is(err, notifications.ErrNotFound) {
+		c.JSON(http.StatusNotFound, errorResponse("not_found", "notification not found"))
+		return
+	}
+	_ = c.Error(err)
+	c.JSON(http.StatusInternalServerError, errorResponse("internal", "internal error"))
 }
 
 func searchUsers(users UserGetter) gin.HandlerFunc {

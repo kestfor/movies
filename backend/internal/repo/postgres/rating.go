@@ -128,6 +128,23 @@ func (r *RatingRepository) Upsert(ctx context.Context, params usecaseratings.Ups
 		}
 	}
 
+	if rating.Inserted {
+		eventID, err := q.CreateRatingActivityEvent(ctx, gen.CreateRatingActivityEventParams{
+			ActorID:  params.UserID,
+			TitleID:  titleID,
+			RatingID: toNullInt8(rating.ID),
+		})
+		if err != nil {
+			return domain.Rating{}, err
+		}
+		if err := q.DeliverActivityEventToFriends(ctx, gen.DeliverActivityEventToFriendsParams{
+			RequesterID: params.UserID,
+			EventID:     eventID,
+		}); err != nil {
+			return domain.Rating{}, err
+		}
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return domain.Rating{}, err
 	}

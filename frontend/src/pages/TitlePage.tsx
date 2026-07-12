@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CSSProperties } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { Comments } from '../components/Comments';
 import { RatingEditor } from '../components/RatingEditor';
@@ -12,6 +12,7 @@ import { haptic } from '../lib/telegram';
 
 export function TitlePage() {
   const { type = '', id = '' } = useParams();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const titleKey = ['title', type, id];
   const commentsKey = ['comments', type, id];
@@ -140,6 +141,7 @@ export function TitlePage() {
       {comments.data ? (
         <Comments
           comments={comments.data.comments}
+          activeCommentID={Number(searchParams.get('comment_id')) || undefined}
           me={me.data}
           posting={createComment.isPending}
           onCreate={(body, parentID) => createComment.mutate({ body, parentID })}
