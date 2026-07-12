@@ -9,7 +9,7 @@ FROM deps AS build
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/backupbot ./cmd/backupbot
-RUN CGO_ENABLED=0 GOOS=linux GOBIN=/out go install github.com/jackc/tern/v2@latest
+RUN CGO_ENABLED=0 GOOS=linux GOBIN=/out go install github.com/jackc/tern/v2@v2.4.1
 
 FROM postgres:17-alpine AS runtime
 

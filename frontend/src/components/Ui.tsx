@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import type { CSSProperties, ReactNode } from 'react';
+import { AlertCircle, Loader2, Star } from 'lucide-react';
 import { ApiError } from '../api/client';
 import { haptic } from '../lib/telegram';
 
@@ -60,5 +60,15 @@ export function Button({
 }
 
 export function ScorePill({ value, muted = false }: { value?: number | null; muted?: boolean }) {
-  return <span className={`score-pill ${muted ? 'score-pill--muted' : ''}`}>{value ? value.toFixed(1) : '—'}</span>;
+  const hasValue = typeof value === 'number' && value > 0;
+  const clamped = hasValue ? Math.min(10, Math.max(1, value)) : 0;
+  const hue = hasValue ? 5 + ((clamped - 1) / 9) * 135 : 0;
+  const style = hasValue && !muted ? ({ '--score-hue': hue.toFixed(1) } as CSSProperties) : undefined;
+
+  return (
+    <span className={`score-pill ${muted || !hasValue ? 'score-pill--muted' : ''} ${hasValue && value >= 9 ? 'score-pill--top' : ''}`} style={style}>
+      {hasValue && value >= 9 ? <Star className="score-pill__icon" size={12} fill="currentColor" aria-hidden="true" /> : null}
+      {hasValue ? value.toFixed(1) : '—'}
+    </span>
+  );
 }

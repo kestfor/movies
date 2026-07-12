@@ -63,7 +63,7 @@ Returns active rating criteria.
 ```json
 {
   "criteria": [
-    { "id": 1, "code": "plot", "name": "Сюжет", "sort_order": 1 }
+    { "id": 1, "code": "story", "name": "История", "description": "Сюжет, структура, логика, интрига и финал.", "sort_order": 1 }
   ]
 }
 ```
@@ -115,7 +115,7 @@ Returns a title card. Social fields are populated only if the title snapshot exi
   "my_rating": {
     "user": { "id": 1, "tg_id": 111, "first_name": "Иван" },
     "avg_score": 8.5,
-    "scores": { "plot": 8, "music": 9 },
+    "scores": { "story": 8, "sound": 9 },
     "created_at": "2026-07-11T14:00:00Z",
     "updated_at": "2026-07-11T14:00:00Z"
   },
@@ -123,14 +123,14 @@ Returns a title card. Social fields are populated only if the title snapshot exi
     {
       "user": { "id": 2, "tg_id": 222, "first_name": "Анна" },
       "avg_score": 9,
-      "scores": { "plot": 10, "music": 8 },
+      "scores": { "story": 10, "sound": 8 },
       "created_at": "2026-07-11T14:01:00Z",
       "updated_at": "2026-07-11T14:01:00Z"
     }
   ],
   "friends_avg": {
     "overall": 8.8,
-    "by_criteria": { "plot": 9, "music": 8.5 }
+    "by_criteria": { "story": 9, "sound": 8.5 }
   },
   "comments_count": 3
 }
@@ -147,8 +147,8 @@ Request:
 ```json
 {
   "scores": {
-    "plot": 8,
-    "music": 9
+    "story": 8,
+    "sound": 9
   }
 }
 ```
@@ -162,7 +162,7 @@ Returns:
     "user_id": 1,
     "title_id": 1,
     "avg_score": 8.5,
-    "scores": { "plot": 8, "music": 9 },
+    "scores": { "story": 8, "sound": 9 },
     "created_at": "2026-07-11T14:00:00Z",
     "updated_at": "2026-07-11T14:00:00Z"
   }
@@ -339,7 +339,7 @@ Returns ratings from accepted friends only. Sorted by `(created_at, id) DESC`.
         "title": "Матрица"
       },
       "avg_score": 8.5,
-      "scores": { "plot": 8, "music": 9 },
+      "scores": { "story": 8, "sound": 9 },
       "created_at": "2026-07-11T14:00:00Z",
       "updated_at": "2026-07-11T14:00:00Z"
     }
@@ -365,7 +365,7 @@ Returns ratings and stats for current user or accepted friend. For non-friends r
         "title": "Матрица"
       },
       "avg_score": 8.5,
-      "scores": { "plot": 8, "music": 9 },
+      "scores": { "story": 8, "sound": 9 },
       "created_at": "2026-07-11T14:00:00Z",
       "updated_at": "2026-07-11T14:00:00Z"
     }

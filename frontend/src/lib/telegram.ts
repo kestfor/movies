@@ -44,6 +44,7 @@ const DEV_TG_ID = 111;
 const DEV_USERNAME = 'ivan';
 const DEV_FIRST_NAME = 'Иван';
 const DEV_PHOTO_URL = 'https://example.com/photo.jpg';
+const DEV_INIT_DATA_MAX_AGE_SECONDS = 50 * 60;
 
 function isLocalHost(): boolean {
   return ['localhost', '127.0.0.1', '0.0.0.0'].includes(window.location.hostname);
@@ -51,7 +52,7 @@ function isLocalHost(): boolean {
 
 async function buildDevInitData(): Promise<string> {
   const cached = localStorage.getItem('movies.dev_init_data');
-  if (cached) return cached;
+  if (cached && !isExpiredDevInitData(cached)) return cached;
 
   const authDate = String(Math.floor(Date.now() / 1000));
   const user = JSON.stringify(
@@ -74,6 +75,7 @@ async function buildDevInitData(): Promise<string> {
     .join('\n');
 
   const encoder = new TextEncoder();
+  const botToken = import.meta.env.VITE_DEV_BOT_TOKEN || DEV_BOT_TOKEN;
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
     encoder.encode('WebAppData'),
@@ -81,7 +83,7 @@ async function buildDevInitData(): Promise<string> {
     false,
     ['sign'],
   );
-  const secret = await crypto.subtle.sign('HMAC', keyMaterial, encoder.encode(DEV_BOT_TOKEN));
+  const secret = await crypto.subtle.sign('HMAC', keyMaterial, encoder.encode(botToken));
   const signatureKey = await crypto.subtle.importKey(
     'raw',
     secret,
@@ -95,6 +97,14 @@ async function buildDevInitData(): Promise<string> {
 
   localStorage.setItem('movies.dev_init_data', initData);
   return initData;
+}
+
+function isExpiredDevInitData(initData: string): boolean {
+  const authDate = Number(new URLSearchParams(initData).get('auth_date') || 0);
+  if (!authDate) return true;
+
+  const now = Math.floor(Date.now() / 1000);
+  return now - authDate > DEV_INIT_DATA_MAX_AGE_SECONDS;
 }
 
 export async function getInitData(): Promise<string> {

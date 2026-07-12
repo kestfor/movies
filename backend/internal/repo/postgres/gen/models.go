@@ -95,6 +95,12 @@ func (ns NullMediaType) Value() (driver.Value, error) {
 	return string(ns.MediaType), nil
 }
 
+type BackupSetting struct {
+	Key       string
+	Value     string
+	UpdatedAt pgtype.Timestamptz
+}
+
 type Comment struct {
 	ID        int64
 	TitleID   int64
@@ -107,11 +113,12 @@ type Comment struct {
 }
 
 type Criterium struct {
-	ID        int16
-	Code      string
-	Name      string
-	SortOrder int16
-	IsActive  bool
+	ID          int16
+	Code        string
+	Name        string
+	SortOrder   int16
+	IsActive    bool
+	Description string
 }
 
 type Friendship struct {

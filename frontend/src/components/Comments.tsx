@@ -139,12 +139,15 @@ function CommentNode({
 function formatCommentDate(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
+  const now = new Date();
+  const includeYear = date.getFullYear() !== now.getFullYear();
   return new Intl.DateTimeFormat('ru-RU', {
-    day: '2-digit',
+    day: 'numeric',
     month: 'short',
+    ...(includeYear ? { year: 'numeric' } : {}),
     hour: '2-digit',
     minute: '2-digit',
-  }).format(date);
+  }).format(date).replace(',', '');
 }
 
 function ReplyForm({ onSubmit }: { onSubmit: (body: string) => void }) {

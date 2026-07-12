@@ -24,10 +24,11 @@ func (r *CriteriaRepository) ListActive(ctx context.Context) ([]domain.Criterion
 	criteria := make([]domain.Criterion, 0, len(items))
 	for _, item := range items {
 		criteria = append(criteria, domain.Criterion{
-			ID:        item.ID,
-			Code:      item.Code,
-			Name:      item.Name,
-			SortOrder: item.SortOrder,
+			ID:          item.ID,
+			Code:        item.Code,
+			Name:        item.Name,
+			Description: item.Description,
+			SortOrder:   item.SortOrder,
 		})
 	}
 	return criteria, nil

@@ -39,10 +39,11 @@ type Title struct {
 }
 
 type Criterion struct {
-	ID        int16  `json:"id"`
-	Code      string `json:"code"`
-	Name      string `json:"name"`
-	SortOrder int16  `json:"sort_order"`
+	ID          int16  `json:"id"`
+	Code        string `json:"code"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	SortOrder   int16  `json:"sort_order"`
 }
 
 type Rating struct {

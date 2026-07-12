@@ -1,4 +1,4 @@
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { FeedCard } from '../components/TitleBits';
 import { Button, EmptyState, ErrorState, LoadingState, PageHeader } from '../components/Ui';
@@ -10,11 +10,14 @@ export function FeedPage() {
     getNextPageParam: (last) => last.next_cursor || undefined,
     initialPageParam: undefined as string | undefined,
   });
+  const criteria = useQuery({ queryKey: ['criteria'], queryFn: api.criteria });
 
-  if (feed.isLoading) return <LoadingState label="Загружаем ленту" />;
+  if (feed.isLoading || criteria.isLoading) return <LoadingState label="Загружаем ленту" />;
   if (feed.isError) return <ErrorState error={feed.error} />;
+  if (criteria.isError) return <ErrorState error={criteria.error} />;
 
   const items = feed.data?.pages.flatMap((page) => page.items) || [];
+  const labels = Object.fromEntries((criteria.data?.criteria || []).map((criterion) => [criterion.code, criterion.name]));
 
   return (
     <>
@@ -24,7 +27,7 @@ export function FeedPage() {
       ) : (
         <div className="stack">
           {items.map((item) => (
-            <FeedCard key={item.id} item={item} />
+            <FeedCard key={item.id} item={item} labels={labels} />
           ))}
           {feed.hasNextPage ? (
             <Button variant="ghost" disabled={feed.isFetchingNextPage} onClick={() => feed.fetchNextPage()}>

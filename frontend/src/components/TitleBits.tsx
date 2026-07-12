@@ -1,3 +1,6 @@
+import { ChevronDown } from 'lucide-react';
+import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { FeedItem, RatingWithUser, Title, User } from '../types/api';
 import { ScorePill } from './Ui';
@@ -30,16 +33,21 @@ export function TitleRow({ title, score }: { title: Title; score?: number }) {
   );
 }
 
-export function FeedCard({ item }: { item: FeedItem }) {
+export function FeedCard({ item, labels }: { item: FeedItem; labels?: Record<string, string> }) {
   return (
     <article className="feed-card">
       <div className="feed-card__user">
-        <UserLink user={item.user} />
-        <span className="muted">оценил</span>
+        <div className="feed-card__actor">
+          <UserLink user={item.user} />
+          <span className="muted">поставил(а) оценку</span>
+        </div>
         <ScorePill value={item.avg_score} />
       </div>
+      <div className="rating-date">{formatRatingDate(item.created_at, item.updated_at)}</div>
       <TitleRow title={item.title} />
-      <ScoreDetails scores={item.scores} />
+      <Accordion title="Детали оценки" summary={`${Object.keys(item.scores).length} оценок`}>
+        <ScoreDetails scores={item.scores} labels={labels} />
+      </Accordion>
     </article>
   );
 }
@@ -67,17 +75,22 @@ export function UserLink({ user, compact = false }: { user: User; compact?: bool
   );
 }
 
-export function RatingCard({ rating }: { rating: RatingWithUser }) {
+export function RatingCard({ rating, labels }: { rating: RatingWithUser; labels?: Record<string, string> }) {
   return (
-    <details className="rating-card">
-      <summary>
-        <span className="rating-card__user">
-          <UserLink user={rating.user} compact />
-        </span>
+    <article className="rating-card">
+      <div className="rating-card__head">
+        <div className="rating-card__meta">
+          <span className="rating-card__user">
+            <UserLink user={rating.user} compact />
+          </span>
+          <span className="rating-date">{formatRatingDate(rating.created_at, rating.updated_at)}</span>
+        </div>
         <ScorePill value={rating.avg_score} />
-      </summary>
-      <ScoreDetails scores={rating.scores} />
-    </details>
+      </div>
+      <Accordion title="Разбивка оценки" summary={`${Object.keys(rating.scores).length} оценок`}>
+        <ScoreDetails scores={rating.scores} labels={labels} />
+      </Accordion>
+    </article>
   );
 }
 
@@ -94,4 +107,52 @@ export function ScoreDetails({ scores, labels }: { scores: Record<string, number
       ))}
     </div>
   );
+}
+
+export function Accordion({
+  title,
+  summary,
+  children,
+  defaultOpen = false,
+  className = '',
+}: {
+  title: string;
+  summary?: string;
+  children: ReactNode;
+  defaultOpen?: boolean;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className={`accordion ${open ? 'accordion--open' : ''} ${className}`}>
+      <button className="accordion__trigger" type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
+        <span>{title}</span>
+        {summary ? <span className="muted">{summary}</span> : null}
+        <ChevronDown className="accordion__icon" size={17} aria-hidden="true" />
+      </button>
+      <div className="accordion__content">
+        <div className="accordion__inner">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+export function formatRatingDate(createdAt: string, updatedAt?: string) {
+  const source = updatedAt || createdAt;
+  if (!source) return '';
+
+  const date = new Date(source);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const now = new Date();
+  const includeYear = date.getFullYear() !== now.getFullYear();
+  const formatted = new Intl.DateTimeFormat('ru-RU', {
+    day: 'numeric',
+    month: 'short',
+    ...(includeYear ? { year: 'numeric' } : {}),
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+
+  return formatted.replace(',', '');
 }

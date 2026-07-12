@@ -10,25 +10,35 @@ import (
 )
 
 const listActiveCriteria = `-- name: ListActiveCriteria :many
-SELECT id, code, name, sort_order, is_active
+SELECT id, code, name, description, sort_order, is_active
 FROM criteria
 WHERE is_active = true
 ORDER BY sort_order, id
 `
 
-func (q *Queries) ListActiveCriteria(ctx context.Context) ([]Criterium, error) {
+type ListActiveCriteriaRow struct {
+	ID          int16
+	Code        string
+	Name        string
+	Description string
+	SortOrder   int16
+	IsActive    bool
+}
+
+func (q *Queries) ListActiveCriteria(ctx context.Context) ([]ListActiveCriteriaRow, error) {
 	rows, err := q.db.Query(ctx, listActiveCriteria)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Criterium
+	var items []ListActiveCriteriaRow
 	for rows.Next() {
-		var i Criterium
+		var i ListActiveCriteriaRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Code,
 			&i.Name,
+			&i.Description,
 			&i.SortOrder,
 			&i.IsActive,
 		); err != nil {

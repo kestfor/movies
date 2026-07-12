@@ -155,15 +155,23 @@ FROM criteria
 WHERE is_active = true AND code = ANY($1::text[])
 `
 
-func (q *Queries) ListCriteriaByCodes(ctx context.Context, dollar_1 []string) ([]Criterium, error) {
+type ListCriteriaByCodesRow struct {
+	ID        int16
+	Code      string
+	Name      string
+	SortOrder int16
+	IsActive  bool
+}
+
+func (q *Queries) ListCriteriaByCodes(ctx context.Context, dollar_1 []string) ([]ListCriteriaByCodesRow, error) {
 	rows, err := q.db.Query(ctx, listCriteriaByCodes, dollar_1)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Criterium
+	var items []ListCriteriaByCodesRow
 	for rows.Next() {
-		var i Criterium
+		var i ListCriteriaByCodesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Code,

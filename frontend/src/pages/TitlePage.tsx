@@ -84,6 +84,13 @@ export function TitlePage() {
         {title.genres?.length ? <p className="title-hero__genres muted">{title.genres.join(', ')}</p> : null}
         {title.overview ? <p className="title-hero__overview">{title.overview}</p> : null}
       </section>
+      <RatingEditor
+        criteria={criteria.data.criteria}
+        rating={card.data.my_rating}
+        saving={saveRating.isPending}
+        onSave={(scores) => saveRating.mutate(scores)}
+        onDelete={() => deleteRating.mutate()}
+      />
       {card.data.friends_avg ? (
         <section className="panel">
           <div className="panel__header">
@@ -96,13 +103,6 @@ export function TitlePage() {
           <ScoreDetails scores={card.data.friends_avg.by_criteria} labels={labels} />
         </section>
       ) : null}
-      <RatingEditor
-        criteria={criteria.data.criteria}
-        rating={card.data.my_rating}
-        saving={saveRating.isPending}
-        onSave={(scores) => saveRating.mutate(scores)}
-        onDelete={() => deleteRating.mutate()}
-      />
       <section className="panel">
         <div className="panel__header">
           <div>
@@ -113,7 +113,7 @@ export function TitlePage() {
         {card.data.friends_ratings.length ? (
           <div className="stack tight">
             {card.data.friends_ratings.map((rating) => (
-              <RatingCard key={rating.user.uuid} rating={rating} />
+              <RatingCard key={rating.user.uuid} rating={rating} labels={labels} />
             ))}
           </div>
         ) : (

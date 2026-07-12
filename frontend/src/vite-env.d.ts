@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly VITE_API_BASE_URL?: string;
   readonly VITE_DEV_INIT_DATA?: string;
+  readonly VITE_DEV_BOT_TOKEN?: string;
   readonly VITE_BOT_USERNAME?: string;
   readonly VITE_WEBAPP_SHORT_NAME?: string;
 }
