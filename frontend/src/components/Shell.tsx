@@ -2,7 +2,7 @@ import { Film, Search, Users, UserRound } from 'lucide-react';
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
-import { tg } from '../lib/telegram';
+import { haptic, tg } from '../lib/telegram';
 import {
   clearActiveTitleTransition,
   consumePreserveScroll,
@@ -42,6 +42,7 @@ export function Shell() {
 
   useEffect(() => {
     const back = () => {
+      haptic('light');
       if (runTitleBackTransition(location.pathname, navigate)) return;
       navigate(-1);
     };
@@ -81,6 +82,7 @@ export function Shell() {
               className="tabbar__item"
               onClick={(event) => {
                 if (currentIndex === nextIndex) return;
+                haptic('light');
                 event.preventDefault();
                 navigate(tab.to, { state: { pageDirection: direction } });
               }}

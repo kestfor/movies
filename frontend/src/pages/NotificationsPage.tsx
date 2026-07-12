@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { Avatar, formatRatingDate } from '../components/TitleBits';
 import { Button, EmptyState, ErrorState, LoadingState, PageHeader, ScorePill } from '../components/Ui';
+import { haptic } from '../lib/telegram';
 import type { NotificationItem } from '../types/api';
 
 export function NotificationsPage() {
@@ -19,12 +20,14 @@ export function NotificationsPage() {
   const markRead = useMutation({
     mutationFn: (eventID: number) => api.markNotificationRead(eventID),
     onSuccess: () => {
+      haptic('light');
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
   const markAllRead = useMutation({
     mutationFn: api.markAllNotificationsRead,
     onSuccess: () => {
+      haptic('success');
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
@@ -45,7 +48,10 @@ export function NotificationsPage() {
             <button
               className="icon-button"
               type="button"
-              onClick={() => markAllRead.mutate()}
+              onClick={() => {
+                haptic('medium');
+                markAllRead.mutate();
+              }}
               disabled={markAllRead.isPending}
               aria-label="Отметить всё прочитанным"
             >
@@ -64,6 +70,7 @@ export function NotificationsPage() {
               item={item}
               busy={markRead.isPending}
               onOpen={() => {
+                haptic('medium');
                 const open = () => navigate(item.deep_link, { state: { pageDirection: 'forward' } });
                 if (item.read_at) {
                   open();

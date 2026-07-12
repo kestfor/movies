@@ -35,10 +35,15 @@ export function TitlePage() {
       haptic('success');
       refreshTitle();
     },
+    onError: () => haptic('error'),
   });
   const deleteRating = useMutation({
     mutationFn: () => api.deleteRating(type, id),
-    onSuccess: refreshTitle,
+    onSuccess: () => {
+      haptic('success');
+      refreshTitle();
+    },
+    onError: () => haptic('error'),
   });
   const createComment = useMutation({
     mutationFn: ({ body, parentID }: { body: string; parentID?: number }) => api.postComment(type, id, body, parentID),
@@ -47,14 +52,23 @@ export function TitlePage() {
       queryClient.invalidateQueries({ queryKey: commentsKey });
       queryClient.invalidateQueries({ queryKey: titleKey });
     },
+    onError: () => haptic('error'),
   });
   const updateComment = useMutation({
     mutationFn: ({ commentID, body }: { commentID: number; body: string }) => api.patchComment(commentID, body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: commentsKey }),
+    onSuccess: () => {
+      haptic('success');
+      queryClient.invalidateQueries({ queryKey: commentsKey });
+    },
+    onError: () => haptic('error'),
   });
   const removeComment = useMutation({
     mutationFn: (commentID: number) => api.deleteComment(commentID),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: commentsKey }),
+    onSuccess: () => {
+      haptic('success');
+      queryClient.invalidateQueries({ queryKey: commentsKey });
+    },
+    onError: () => haptic('error'),
   });
 
   if (card.isLoading || criteria.isLoading) {

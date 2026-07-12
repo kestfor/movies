@@ -35,18 +35,25 @@ export function FriendsPage() {
       haptic('success');
       refresh();
     },
+    onError: () => haptic('error'),
   });
   const accept = useMutation({
     mutationFn: (userUUID: string) => api.acceptFriendRequest(userUUID),
-    onSuccess: refresh,
+    onSuccess: () => {
+      haptic('success');
+      refresh();
+    },
+    onError: () => haptic('error'),
   });
   const decline = useMutation({
     mutationFn: (userUUID: string) => api.deleteFriendRequest(userUUID),
     onSuccess: refresh,
+    onError: () => haptic('error'),
   });
   const remove = useMutation({
     mutationFn: (userUUID: string) => api.deleteFriend(userUUID),
     onSuccess: refresh,
+    onError: () => haptic('error'),
   });
 
   if (friends.isLoading || requests.isLoading || me.isLoading) return <LoadingState label="Загружаем друзей" />;
@@ -145,7 +152,13 @@ export function FriendsPage() {
                 <UserLink user={request.user} />
                 <div className="user-row__actions">
                   <Button onClick={() => accept.mutate(request.user.uuid)}>Принять</Button>
-                  <Button variant="ghost" onClick={() => decline.mutate(request.user.uuid)}>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      haptic('warning');
+                      decline.mutate(request.user.uuid);
+                    }}
+                  >
                     Отклонить
                   </Button>
                 </div>
@@ -168,7 +181,13 @@ export function FriendsPage() {
             {friends.data.friends.map((friend) => (
               <div className="user-row" key={friend.uuid}>
                 <UserLink user={friend} />
-                <Button variant="ghost" onClick={() => remove.mutate(friend.uuid)}>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    haptic('warning');
+                    remove.mutate(friend.uuid);
+                  }}
+                >
                   Удалить
                 </Button>
               </div>

@@ -14,6 +14,7 @@ import {
 import type { FeedItem, RatingWithUser, Title, User } from '../types/api';
 import { ScorePill } from './Ui';
 import { api } from '../api/client';
+import { haptic } from '../lib/telegram';
 
 export const posterURL = (path?: string) => path || '';
 
@@ -41,6 +42,7 @@ export function TitleRow({ title, score }: { title: Title; score?: number }) {
     const target = event.currentTarget;
     setActiveTitleTransition(title);
     setOpening(true);
+    haptic('medium');
 
     try {
       await queryClient.ensureQueryData({
@@ -49,11 +51,13 @@ export function TitleRow({ title, score }: { title: Title; score?: number }) {
       });
     } catch {
       setOpening(false);
+      haptic('warning');
       suppressNextPageTransition();
       navigate(to, { state: { pageDirection: 'forward' } });
       return;
     }
 
+    haptic('light');
     target.style.setProperty('view-transition-name', titleTransitionName(title));
 
     const transition = startViewTransition(() => {
@@ -145,7 +149,10 @@ export function RatingCard({ rating, labels }: { rating: RatingWithUser; labels?
       <button
         className="rating-card__head"
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => {
+          haptic('light');
+          setOpen((value) => !value);
+        }}
         aria-label="Показать детали оценки"
         aria-expanded={open}
       >
@@ -202,7 +209,15 @@ export function Accordion({
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div className={`accordion ${open ? 'accordion--open' : ''} ${className}`}>
-      <button className="accordion__trigger" type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
+      <button
+        className="accordion__trigger"
+        type="button"
+        onClick={() => {
+          haptic('light');
+          setOpen((value) => !value);
+        }}
+        aria-expanded={open}
+      >
         <span>{title}</span>
         {summary ? <span className="muted">{summary}</span> : null}
         <ChevronDown className="accordion__icon" size={17} aria-hidden="true" />

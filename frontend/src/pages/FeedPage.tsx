@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { FeedCard } from '../components/TitleBits';
 import { Button, EmptyState, ErrorState, LoadingState, PageHeader } from '../components/Ui';
+import { haptic } from '../lib/telegram';
 
 export function FeedPage() {
   const navigate = useNavigate();
@@ -32,7 +33,10 @@ export function FeedPage() {
           <button
             className="icon-button notification-button"
             type="button"
-            onClick={() => navigate('/notifications', { state: { pageDirection: 'forward' } })}
+            onClick={() => {
+              haptic('medium');
+              navigate('/notifications', { state: { pageDirection: 'forward' } });
+            }}
             aria-label={`Уведомления${unread.data?.count ? `: ${unread.data.count}` : ''}`}
           >
             <Bell size={20} aria-hidden />

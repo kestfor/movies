@@ -58,7 +58,7 @@ export function RatingEditor({
             className="icon-button danger"
             type="button"
             onClick={() => {
-              haptic('light');
+              haptic('warning');
               onDelete();
             }}
             aria-label="Удалить оценку"
@@ -79,7 +79,10 @@ export function RatingEditor({
                     type="button"
                     aria-label={`Описание критерия ${criterion.name}`}
                     aria-expanded={openHint === criterion.code}
-                    onClick={() => setOpenHint((current) => (current === criterion.code ? null : criterion.code))}
+                    onClick={() => {
+                      haptic('light');
+                      setOpenHint((current) => (current === criterion.code ? null : criterion.code));
+                    }}
                   >
                     <Info size={15} />
                   </button>

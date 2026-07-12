@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { Avatar, TitleRow } from '../components/TitleBits';
 import { Button, EmptyState, ErrorState, LoadingState, PageHeader, ScorePill } from '../components/Ui';
+import { haptic } from '../lib/telegram';
 
 export function ProfilePage() {
   const { id } = useParams();
@@ -23,15 +24,24 @@ export function ProfilePage() {
   };
   const create = useMutation({
     mutationFn: (uuid: string) => api.createFriendRequest(uuid),
-    onSuccess: refreshSocial,
+    onSuccess: () => {
+      haptic('success');
+      refreshSocial();
+    },
+    onError: () => haptic('error'),
   });
   const accept = useMutation({
     mutationFn: (uuid: string) => api.acceptFriendRequest(uuid),
-    onSuccess: refreshSocial,
+    onSuccess: () => {
+      haptic('success');
+      refreshSocial();
+    },
+    onError: () => haptic('error'),
   });
   const remove = useMutation({
     mutationFn: (uuid: string) => api.deleteFriend(uuid),
     onSuccess: refreshSocial,
+    onError: () => haptic('error'),
   });
 
   if (me.isLoading || profile.isLoading) return <LoadingState label="Открываем профиль" />;
@@ -68,7 +78,14 @@ export function ProfilePage() {
             </span>
           ) : null}
           {profile.data?.relationship === 'friend' ? (
-            <Button variant="ghost" disabled={remove.isPending} onClick={() => remove.mutate(profileUser.uuid)}>
+            <Button
+              variant="ghost"
+              disabled={remove.isPending}
+              onClick={() => {
+                haptic('warning');
+                remove.mutate(profileUser.uuid);
+              }}
+            >
               <UserMinus size={18} /> Удалить
             </Button>
           ) : null}

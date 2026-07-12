@@ -156,12 +156,14 @@ export function applyTelegramTheme(): void {
   root.dataset.theme = tg?.colorScheme || 'dark';
 }
 
-export function haptic(type: 'light' | 'success' | 'error' = 'light'): void {
-  if (type === 'light') {
-    tg?.HapticFeedback?.impactOccurred?.('light');
-  } else {
-    tg?.HapticFeedback?.notificationOccurred?.(type);
+type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error';
+
+export function haptic(type: HapticType = 'light'): void {
+  if (type === 'light' || type === 'medium' || type === 'heavy') {
+    tg?.HapticFeedback?.impactOccurred?.(type);
+    return;
   }
+  tg?.HapticFeedback?.notificationOccurred?.(type);
 }
 
 export function shareInvite(currentUserUUID: string): void {

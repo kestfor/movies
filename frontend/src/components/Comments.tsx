@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Comment, User } from '../types/api';
 import { UserLink } from './TitleBits';
 import { Button } from './Ui';
+import { haptic } from '../lib/telegram';
 
 export function Comments({
   comments,
@@ -114,15 +115,34 @@ function CommentNode({
       )}
       {!comment.is_deleted ? (
         <div className="comment__actions">
-          <button type="button" onClick={() => setReplying((value) => !value)}>
+          <button
+            type="button"
+            onClick={() => {
+              haptic('light');
+              setReplying((value) => !value);
+            }}
+          >
             Ответить
           </button>
           {own ? (
             <>
-              <button type="button" onClick={() => setEditing(true)}>
+              <button
+                type="button"
+                onClick={() => {
+                  haptic('light');
+                  setEditing(true);
+                }}
+              >
                 <Pencil size={14} /> Изменить
               </button>
-              <button type="button" className="danger" onClick={() => onDelete(comment.id)}>
+              <button
+                type="button"
+                className="danger"
+                onClick={() => {
+                  haptic('warning');
+                  onDelete(comment.id);
+                }}
+              >
                 <Trash2 size={14} /> Удалить
               </button>
             </>
