@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
@@ -18,6 +18,8 @@ export function TitlePage() {
   const queryClient = useQueryClient();
   const { showToast, showError } = useToast();
   const [ratingEditorOpen, setRatingEditorOpen] = useState<boolean | undefined>(undefined);
+  const [ratingCelebrating, setRatingCelebrating] = useState(false);
+  const celebrationTimer = useRef<number | null>(null);
   const titleKey = ['title', type, id];
   const commentsKey = ['comments', type, id];
   const card = useQuery({ queryKey: titleKey, queryFn: () => api.title(type, id) });
@@ -26,6 +28,10 @@ export function TitlePage() {
   const me = useQuery({ queryKey: ['me'], queryFn: api.me });
   const sharedTransitionName = getActiveTitleTransitionNameByRef(type, id);
   const activeTransition = getActiveTitleTransitionByRef(type, id);
+
+  useEffect(() => () => {
+    if (celebrationTimer.current !== null) window.clearTimeout(celebrationTimer.current);
+  }, []);
 
   const refreshTitle = () => {
     queryClient.invalidateQueries({ queryKey: titleKey });
@@ -38,10 +44,19 @@ export function TitlePage() {
     onSuccess: () => {
       haptic('success');
       showToast('Оценка сохранена');
-      setRatingEditorOpen(false);
+      setRatingEditorOpen(true);
+      setRatingCelebrating(true);
       refreshTitle();
+      if (celebrationTimer.current !== null) window.clearTimeout(celebrationTimer.current);
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      celebrationTimer.current = window.setTimeout(() => {
+        setRatingCelebrating(false);
+        setRatingEditorOpen(false);
+        celebrationTimer.current = null;
+      }, reducedMotion ? 280 : 650);
     },
     onError: (error) => {
+      setRatingCelebrating(false);
       haptic('error');
       showError(error, 'Оценку не удалось сохранить');
     },
@@ -49,6 +64,11 @@ export function TitlePage() {
   const deleteRating = useMutation({
     mutationFn: () => api.deleteRating(type, id),
     onSuccess: () => {
+      if (celebrationTimer.current !== null) {
+        window.clearTimeout(celebrationTimer.current);
+        celebrationTimer.current = null;
+      }
+      setRatingCelebrating(false);
       haptic('success');
       showToast('Оценка удалена', 'warning');
       setRatingEditorOpen(true);
@@ -145,6 +165,7 @@ export function TitlePage() {
         criteria={criteria.data.criteria}
         rating={card.data.my_rating}
         saving={saveRating.isPending}
+        celebrating={ratingCelebrating}
         open={editorOpen}
         onOpenChange={setRatingEditorOpen}
         onSave={(scores) => saveRating.mutate(scores)}
