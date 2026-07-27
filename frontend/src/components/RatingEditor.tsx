@@ -29,6 +29,22 @@ const SWIPE_VERTICAL_DOMINANCE = 1.25;
 const SWIPE_DISTANCE_RATIO = 0.25;
 const SWIPE_VELOCITY_THRESHOLD = 0.5;
 
+function classifySwipeAxis(dx: number, dy: number): DragState['axis'] {
+  if (Math.hypot(dx, dy) < SWIPE_AXIS_THRESHOLD) return 'pending';
+
+  const absX = Math.abs(dx);
+  const absY = Math.abs(dy);
+  if (absX >= absY * SWIPE_HORIZONTAL_DOMINANCE) return 'horizontal';
+  if (absY >= absX * SWIPE_VERTICAL_DOMINANCE) return 'vertical';
+  return 'pending';
+}
+
+function isIOSTouchDevice() {
+  if (typeof navigator === 'undefined') return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent)
+    || navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+}
+
 const EMPTY_CRITERION_EMOJIS: Record<string, string> = {
   story: '📖',
   plot: '📖',
@@ -168,6 +184,7 @@ function RatingCarousel({
   onScoreChange: (code: string, value?: number) => void;
   onSave: () => void;
 }) {
+  const deck = useRef<HTMLDivElement | null>(null);
   const drag = useRef<DragState | null>(null);
   const pendingIndex = useRef<number | null>(null);
   const [dragOffset, setDragOffset] = useState(0);
@@ -192,6 +209,25 @@ function RatingCarousel({
     const timer = window.setTimeout(finishSettling, 420);
     return () => window.clearTimeout(timer);
   }, [settling]);
+
+  useEffect(() => {
+    const element = deck.current;
+    if (!element || !isIOSTouchDevice()) return undefined;
+
+    const preserveHorizontalSwipe = (event: TouchEvent) => {
+      const current = drag.current;
+      if (!current || event.touches.length !== 1) return;
+
+      const touch = event.touches[0];
+      const axis = current.axis === 'pending'
+        ? classifySwipeAxis(touch.clientX - current.startX, touch.clientY - current.startY)
+        : current.axis;
+      if (axis === 'horizontal' && event.cancelable) event.preventDefault();
+    };
+
+    element.addEventListener('touchmove', preserveHorizontalSwipe, { passive: false });
+    return () => element.removeEventListener('touchmove', preserveHorizontalSwipe);
+  }, []);
 
   const beginDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (settling || event.pointerType === 'mouse' && event.button !== 0) return;
@@ -220,19 +256,8 @@ function RatingCarousel({
     const dx = event.clientX - current.startX;
     const dy = event.clientY - current.startY;
     if (current.axis === 'pending') {
-      if (Math.hypot(dx, dy) < SWIPE_AXIS_THRESHOLD) return;
-
-      const absX = Math.abs(dx);
-      const absY = Math.abs(dy);
-      if (absX >= absY * SWIPE_HORIZONTAL_DOMINANCE) {
-        current.axis = 'horizontal';
-      } else if (absY >= absX * SWIPE_VERTICAL_DOMINANCE) {
-        current.axis = 'vertical';
-        return;
-      } else {
-        return;
-      }
-
+      current.axis = classifySwipeAxis(dx, dy);
+      if (current.axis !== 'horizontal') return;
       setDragging(true);
     }
     if (current.axis !== 'horizontal') return;
@@ -363,6 +388,7 @@ function RatingCarousel({
         ))}
       </div>
       <div
+        ref={deck}
         className={`rating-carousel rating-deck ${dragging ? 'is-dragging' : ''} ${settling ? 'is-settling' : ''}`}
         onPointerDown={beginDrag}
         onPointerMove={moveDrag}
