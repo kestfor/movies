@@ -26,16 +26,25 @@ type DragState = {
 const SWIPE_AXIS_THRESHOLD = 8;
 const SWIPE_HORIZONTAL_DOMINANCE = 1.05;
 const SWIPE_VERTICAL_DOMINANCE = 1.25;
+const IOS_SWIPE_AXIS_THRESHOLD = 4;
+const IOS_SWIPE_HORIZONTAL_DOMINANCE = 0.8;
+const IOS_SWIPE_VERTICAL_DOMINANCE = 1.35;
 const SWIPE_DISTANCE_RATIO = 0.25;
 const SWIPE_VELOCITY_THRESHOLD = 0.5;
 
-function classifySwipeAxis(dx: number, dy: number): DragState['axis'] {
-  if (Math.hypot(dx, dy) < SWIPE_AXIS_THRESHOLD) return 'pending';
+function classifySwipeAxis(
+  dx: number,
+  dy: number,
+  threshold = SWIPE_AXIS_THRESHOLD,
+  horizontalDominance = SWIPE_HORIZONTAL_DOMINANCE,
+  verticalDominance = SWIPE_VERTICAL_DOMINANCE,
+): DragState['axis'] {
+  if (Math.hypot(dx, dy) < threshold) return 'pending';
 
   const absX = Math.abs(dx);
   const absY = Math.abs(dy);
-  if (absX >= absY * SWIPE_HORIZONTAL_DOMINANCE) return 'horizontal';
-  if (absY >= absX * SWIPE_VERTICAL_DOMINANCE) return 'vertical';
+  if (absX >= absY * horizontalDominance) return 'horizontal';
+  if (absY >= absX * verticalDominance) return 'vertical';
   return 'pending';
 }
 
@@ -219,10 +228,16 @@ function RatingCarousel({
       if (!current || event.touches.length !== 1) return;
 
       const touch = event.touches[0];
-      const axis = current.axis === 'pending'
-        ? classifySwipeAxis(touch.clientX - current.startX, touch.clientY - current.startY)
-        : current.axis;
-      if (axis === 'horizontal' && event.cancelable) event.preventDefault();
+      if (current.axis === 'pending') {
+        current.axis = classifySwipeAxis(
+          touch.clientX - current.startX,
+          touch.clientY - current.startY,
+          IOS_SWIPE_AXIS_THRESHOLD,
+          IOS_SWIPE_HORIZONTAL_DOMINANCE,
+          IOS_SWIPE_VERTICAL_DOMINANCE,
+        );
+      }
+      if (current.axis === 'horizontal' && event.cancelable) event.preventDefault();
     };
 
     element.addEventListener('touchmove', preserveHorizontalSwipe, { passive: false });
@@ -257,10 +272,9 @@ function RatingCarousel({
     const dy = event.clientY - current.startY;
     if (current.axis === 'pending') {
       current.axis = classifySwipeAxis(dx, dy);
-      if (current.axis !== 'horizontal') return;
-      setDragging(true);
     }
     if (current.axis !== 'horizontal') return;
+    if (!dragging) setDragging(true);
 
     event.preventDefault();
     const elapsed = Math.max(1, event.timeStamp - current.lastAt);
