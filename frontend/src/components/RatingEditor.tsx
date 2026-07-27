@@ -210,6 +210,7 @@ function RatingCarousel({
       axis: 'pending',
       width,
     };
+    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const moveDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -232,7 +233,6 @@ function RatingCarousel({
         return;
       }
 
-      event.currentTarget.setPointerCapture(event.pointerId);
       setDragging(true);
     }
     if (current.axis !== 'horizontal') return;
