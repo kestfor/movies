@@ -24,6 +24,8 @@ type DragState = {
 };
 
 const SWIPE_AXIS_THRESHOLD = 8;
+const SWIPE_HORIZONTAL_DOMINANCE = 1.05;
+const SWIPE_VERTICAL_DOMINANCE = 1.25;
 const SWIPE_DISTANCE_RATIO = 0.25;
 const SWIPE_VELOCITY_THRESHOLD = 0.5;
 
@@ -208,7 +210,6 @@ function RatingCarousel({
       axis: 'pending',
       width,
     };
-    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
   const moveDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -219,8 +220,19 @@ function RatingCarousel({
     const dy = event.clientY - current.startY;
     if (current.axis === 'pending') {
       if (Math.hypot(dx, dy) < SWIPE_AXIS_THRESHOLD) return;
-      current.axis = Math.abs(dx) > Math.abs(dy) * 1.2 ? 'horizontal' : 'vertical';
-      if (current.axis === 'vertical') return;
+
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
+      if (absX >= absY * SWIPE_HORIZONTAL_DOMINANCE) {
+        current.axis = 'horizontal';
+      } else if (absY >= absX * SWIPE_VERTICAL_DOMINANCE) {
+        current.axis = 'vertical';
+        return;
+      } else {
+        return;
+      }
+
+      event.currentTarget.setPointerCapture(event.pointerId);
       setDragging(true);
     }
     if (current.axis !== 'horizontal') return;
