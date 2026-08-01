@@ -1387,6 +1387,8 @@ a {
 }
 
 .accordion__icon {
+  grid-column: 4;
+  justify-self: end;
   color: var(--tg-hint);
   transition: transform 180ms ease;
 }
