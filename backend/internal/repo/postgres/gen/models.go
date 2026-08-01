@@ -224,3 +224,9 @@ type User struct {
 	CreatedAt pgtype.Timestamptz
 	Uuid      pgtype.UUID
 }
+
+type WatchlistItem struct {
+	UserID    int64
+	TitleID   int64
+	CreatedAt pgtype.Timestamptz
+}

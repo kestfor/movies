@@ -13,8 +13,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func searchTitles(titles TitleSearcher) gin.HandlerFunc {
+func searchTitles(titles TitleSearcher, watchlist WatchlistManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		user, ok := currentUser(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, errorResponse("unauthorized", "authentication required"))
+			return
+		}
 		query := c.Query("q")
 		page := 1
 		if raw := c.Query("page"); raw != "" {
@@ -32,11 +37,32 @@ func searchTitles(titles TitleSearcher) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, result)
+		refs := make([]domain.TitleRef, 0, len(result.Results))
+		for _, title := range result.Results {
+			refs = append(refs, domain.TitleRef{TmdbID: title.TmdbID, MediaType: title.MediaType})
+		}
+		statuses, err := watchlist.Statuses(c.Request.Context(), user.ID, refs)
+		if err != nil {
+			_ = c.Error(err)
+			c.JSON(http.StatusInternalServerError, errorResponse("internal", "internal error"))
+			return
+		}
+		items := make([]domain.CatalogItem, 0, len(result.Results))
+		for _, title := range result.Results {
+			ref := domain.TitleRef{TmdbID: title.TmdbID, MediaType: title.MediaType}
+			items = append(items, domain.CatalogItem{Title: domain.Title{
+				TmdbID: title.TmdbID, MediaType: title.MediaType, Title: title.Title,
+				OriginalTitle: title.OriginalTitle, ReleaseYear: title.ReleaseYear,
+				PosterPath: title.PosterPath, Overview: title.Overview,
+			}, InWatchlist: statuses[ref]})
+		}
+		c.JSON(http.StatusOK, domain.CatalogSearchPage{
+			Page: result.Page, TotalPages: result.TotalPages, TotalResults: result.TotalResults, Results: items,
+		})
 	}
 }
 
-func getTitle(titles TitleSearcher) gin.HandlerFunc {
+func getTitle(titles TitleSearcher, watchlist WatchlistManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		user, ok := currentUser(c)
 		if !ok {
@@ -59,6 +85,12 @@ func getTitle(titles TitleSearcher) gin.HandlerFunc {
 		card, err := titles.GetCard(c.Request.Context(), user.ID, mediaType, tmdbID)
 		if err != nil {
 			writeTitleError(c, err)
+			return
+		}
+		card.InWatchlist, err = watchlist.IsInWatchlist(c.Request.Context(), user.ID, mediaType, tmdbID)
+		if err != nil {
+			_ = c.Error(err)
+			c.JSON(http.StatusInternalServerError, errorResponse("internal", "internal error"))
 			return
 		}
 

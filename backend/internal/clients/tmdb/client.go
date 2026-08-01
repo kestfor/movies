@@ -101,6 +101,99 @@ func (c *Client) Get(ctx context.Context, mediaType domain.MediaType, tmdbID int
 	return result, nil
 }
 
+func (c *Client) Discover(ctx context.Context, mediaType domain.MediaType, page int) (domain.CatalogProviderPage, error) {
+	if mediaType != domain.MediaTypeMovie && mediaType != domain.MediaTypeTV {
+		return domain.CatalogProviderPage{}, ErrNotFound
+	}
+	if page < 1 {
+		page = 1
+	}
+	key := fmt.Sprintf("discover|%s|%d|%s", mediaType, page, c.language)
+	if cached, ok := c.getCached(key); ok {
+		return cached.(domain.CatalogProviderPage), nil
+	}
+	result, err := c.catalogPage(ctx, "/discover/"+string(mediaType), mediaType, url.Values{
+		"page": {strconv.Itoa(page)}, "include_adult": {"false"}, "sort_by": {"popularity.desc"},
+	})
+	if err != nil {
+		return domain.CatalogProviderPage{}, err
+	}
+	c.setCached(key, result)
+	return result, nil
+}
+
+func (c *Client) Recommendations(ctx context.Context, mediaType domain.MediaType, tmdbID int64) (domain.CatalogProviderPage, error) {
+	if (mediaType != domain.MediaTypeMovie && mediaType != domain.MediaTypeTV) || tmdbID <= 0 {
+		return domain.CatalogProviderPage{}, ErrNotFound
+	}
+	key := fmt.Sprintf("recommendations|%s|%d|%s", mediaType, tmdbID, c.language)
+	if cached, ok := c.getCached(key); ok {
+		return cached.(domain.CatalogProviderPage), nil
+	}
+	path := fmt.Sprintf("/%s/%d/recommendations", mediaType, tmdbID)
+	result, err := c.catalogPage(ctx, path, mediaType, url.Values{"page": {"1"}})
+	if err != nil {
+		return domain.CatalogProviderPage{}, err
+	}
+	c.setCached(key, result)
+	return result, nil
+}
+
+func (c *Client) catalogPage(ctx context.Context, path string, mediaType domain.MediaType, query url.Values) (domain.CatalogProviderPage, error) {
+	var payload catalogResponse
+	if err := c.doJSON(ctx, http.MethodGet, c.baseURL+path, query, &payload); err != nil {
+		return domain.CatalogProviderPage{}, err
+	}
+	genres, err := c.genreMap(ctx, mediaType)
+	if err != nil {
+		return domain.CatalogProviderPage{}, err
+	}
+	items := make([]domain.CatalogCandidate, 0, len(payload.Results))
+	for _, item := range payload.Results {
+		if item.ID <= 0 {
+			continue
+		}
+		titleGenres := make([]string, 0, len(item.GenreIDs))
+		for _, id := range item.GenreIDs {
+			if name := genres[id]; name != "" {
+				titleGenres = append(titleGenres, name)
+			}
+		}
+		items = append(items, domain.CatalogCandidate{
+			Title: domain.Title{
+				TmdbID: item.ID, MediaType: mediaType, Title: pick(item.Title, item.Name),
+				OriginalTitle: pick(item.OriginalTitle, item.OriginalName),
+				ReleaseYear:   yearFromDate(pick(item.ReleaseDate, item.FirstAirDate)),
+				PosterPath:    posterURL(item.PosterPath), Genres: titleGenres, Overview: item.Overview,
+			},
+			Popularity: item.Popularity, GenreIDs: item.GenreIDs,
+		})
+	}
+	return domain.CatalogProviderPage{Page: payload.Page, TotalPages: payload.TotalPages, Results: items}, nil
+}
+
+func (c *Client) genreMap(ctx context.Context, mediaType domain.MediaType) (map[int64]string, error) {
+	key := "genres|" + string(mediaType) + "|" + c.language
+	if cached, ok := c.getCached(key); ok {
+		return cached.(map[int64]string), nil
+	}
+	var payload struct {
+		Genres []struct {
+			ID   int64  `json:"id"`
+			Name string `json:"name"`
+		} `json:"genres"`
+	}
+	if err := c.doJSON(ctx, http.MethodGet, c.baseURL+"/genre/"+string(mediaType)+"/list", nil, &payload); err != nil {
+		return nil, err
+	}
+	result := make(map[int64]string, len(payload.Genres))
+	for _, genre := range payload.Genres {
+		result[genre.ID] = genre.Name
+	}
+	c.setCached(key, result)
+	return result, nil
+}
+
 func (c *Client) doJSON(ctx context.Context, method, rawURL string, query url.Values, out any) error {
 	if c.apiToken == "" {
 		return ErrMissingToken
@@ -179,6 +272,26 @@ type searchResponse struct {
 	TotalPages   int          `json:"total_pages"`
 	TotalResults int          `json:"total_results"`
 	Results      []searchItem `json:"results"`
+}
+
+type catalogResponse struct {
+	Page       int           `json:"page"`
+	TotalPages int           `json:"total_pages"`
+	Results    []catalogItem `json:"results"`
+}
+
+type catalogItem struct {
+	ID            int64   `json:"id"`
+	Title         string  `json:"title"`
+	Name          string  `json:"name"`
+	OriginalTitle string  `json:"original_title"`
+	OriginalName  string  `json:"original_name"`
+	ReleaseDate   string  `json:"release_date"`
+	FirstAirDate  string  `json:"first_air_date"`
+	PosterPath    string  `json:"poster_path"`
+	Overview      string  `json:"overview"`
+	Popularity    float64 `json:"popularity"`
+	GenreIDs      []int64 `json:"genre_ids"`
 }
 
 type searchItem struct {

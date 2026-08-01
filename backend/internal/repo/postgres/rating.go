@@ -3,6 +3,8 @@ package postgres
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math"
 	"sort"
 
 	"movies/backend/internal/domain"
@@ -97,6 +99,9 @@ func (r *RatingRepository) Upsert(ctx context.Context, params usecaseratings.Ups
 			return domain.Rating{}, err
 		}
 	}
+	if _, err := q.LockTitleForUpdate(ctx, titleID); err != nil {
+		return domain.Rating{}, err
+	}
 
 	rating, err := q.UpsertRating(ctx, gen.UpsertRatingParams{
 		UserID:  params.UserID,
@@ -126,6 +131,10 @@ func (r *RatingRepository) Upsert(ctx context.Context, params usecaseratings.Ups
 		}); err != nil {
 			return domain.Rating{}, err
 		}
+	}
+
+	if err := q.DeleteWatchlistItem(ctx, gen.DeleteWatchlistItemParams{UserID: params.UserID, TitleID: titleID}); err != nil {
+		return domain.Rating{}, err
 	}
 
 	if rating.Inserted {
@@ -215,40 +224,118 @@ func (r *RatingRepository) UserCanSeeRatings(ctx context.Context, viewerID, user
 	})
 }
 
-func (r *RatingRepository) ListUserRatings(ctx context.Context, userID int64) ([]domain.ProfileRating, error) {
-	rows, err := r.queries.ListUserRatings(ctx, userID)
+func (r *RatingRepository) ListUserRatings(ctx context.Context, userID int64, query usecaseratings.ListQuery) ([]domain.ProfileRating, error) {
+	orderExpr, cursorExpr, cursorValue := profileOrder(query)
+	args := []any{userID}
+	whereCursor := ""
+	if query.Cursor.ID > 0 {
+		args = append(args, cursorValue, query.Cursor.ID)
+		whereCursor = " AND " + cursorExpr
+	}
+	args = append(args, query.Limit)
+	limitArg := len(args)
+	rawSQL := fmt.Sprintf(`
+WITH page_ratings AS (
+    SELECT r.id
+    FROM ratings r
+    JOIN titles t ON t.id = r.title_id
+    WHERE r.user_id = $1%s
+    ORDER BY %s
+    LIMIT $%d
+)
+SELECT
+    r.id, r.user_id, r.title_id, r.avg_score, r.created_at, r.updated_at,
+    t.id, t.tmdb_id, t.media_type, t.title, t.original_title, t.poster_path,
+    t.release_year, t.genres, t.overview,
+    c.code, rs.score
+FROM page_ratings p
+JOIN ratings r ON r.id = p.id
+JOIN titles t ON t.id = r.title_id
+JOIN rating_scores rs ON rs.rating_id = r.id
+JOIN criteria c ON c.id = rs.criterion_id
+ORDER BY %s, c.sort_order, c.id`, whereCursor, orderExpr, limitArg, orderExpr)
+
+	rows, err := r.pool.Query(ctx, rawSQL, args...)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	ordered := make([]domain.ProfileRating, 0)
 	byID := make(map[int64]*domain.ProfileRating)
-	for _, row := range rows {
-		item, ok := byID[row.ID]
+	for rows.Next() {
+		var (
+			ratingID, ratingUserID, ratingTitleID int64
+			avgScore                              pgtype.Numeric
+			createdAt, updatedAt                  pgtype.Timestamptz
+			titleID, tmdbID                       int64
+			mediaType                             gen.MediaType
+			title                                 string
+			originalTitle, posterPath             pgtype.Text
+			releaseYear                           pgtype.Int4
+			genres                                []byte
+			overview                              pgtype.Text
+			criterionCode                         string
+			criterionScore                        int16
+		)
+		if err := rows.Scan(
+			&ratingID, &ratingUserID, &ratingTitleID, &avgScore, &createdAt, &updatedAt,
+			&titleID, &tmdbID, &mediaType, &title, &originalTitle, &posterPath,
+			&releaseYear, &genres, &overview, &criterionCode, &criterionScore,
+		); err != nil {
+			return nil, err
+		}
+		item, ok := byID[ratingID]
 		if !ok {
 			ordered = append(ordered, domain.ProfileRating{
+				ID: ratingID,
 				Title: domain.Title{
-					ID:            row.TitleID_2,
-					TmdbID:        row.TmdbID,
-					MediaType:     domain.MediaType(row.MediaType),
-					Title:         row.Title,
-					OriginalTitle: textToString(row.OriginalTitle),
-					ReleaseYear:   int(row.ReleaseYear.Int32),
-					PosterPath:    textToString(row.PosterPath),
-					Genres:        unmarshalGenres(row.Genres),
-					Overview:      textToString(row.Overview),
+					ID: titleID, TmdbID: tmdbID, MediaType: domain.MediaType(mediaType), Title: title,
+					OriginalTitle: textToString(originalTitle), ReleaseYear: int(releaseYear.Int32),
+					PosterPath: textToString(posterPath), Genres: unmarshalGenres(genres), Overview: textToString(overview),
 				},
-				AvgScore:  numericToFloat64(row.AvgScore),
+				AvgScore:  numericToFloat64(avgScore),
 				Scores:    make(map[string]int),
-				CreatedAt: row.CreatedAt.Time,
-				UpdatedAt: row.UpdatedAt.Time,
+				CreatedAt: createdAt.Time,
+				UpdatedAt: updatedAt.Time,
 			})
 			item = &ordered[len(ordered)-1]
-			byID[row.ID] = item
+			byID[ratingID] = item
 		}
-		item.Scores[row.CriterionCode] = int(row.CriterionScore)
+		item.Scores[criterionCode] = int(criterionScore)
 	}
-	return ordered, nil
+	return ordered, rows.Err()
+}
+
+func profileOrder(query usecaseratings.ListQuery) (orderExpr, cursorExpr string, cursorValue any) {
+	direction := "DESC"
+	comparison := "<"
+	if query.Order == usecaseratings.OrderAsc {
+		direction = "ASC"
+		comparison = ">"
+	}
+	switch query.Sort {
+	case usecaseratings.SortScore:
+		return "r.avg_score " + direction + ", r.id " + direction,
+			fmt.Sprintf("(r.avg_score, r.id) %s ($2::numeric, $3::bigint)", comparison), query.Cursor.Score
+	case usecaseratings.SortTitle:
+		return "lower(t.title) " + direction + ", r.id " + direction,
+			fmt.Sprintf("(lower(t.title), r.id) %s ($2::text, $3::bigint)", comparison), query.Cursor.Title
+	default:
+		return "r.updated_at " + direction + ", r.id " + direction,
+			fmt.Sprintf("(r.updated_at, r.id) %s ($2::timestamptz, $3::bigint)", comparison), query.Cursor.Recent
+	}
+}
+
+func (r *RatingRepository) GetProfileStats(ctx context.Context, userID int64) (domain.ProfileRatingStats, error) {
+	row, err := r.queries.GetUserRatingStats(ctx, userID)
+	if err != nil {
+		return domain.ProfileRatingStats{}, err
+	}
+	return domain.ProfileRatingStats{
+		Count:    int(row.Count),
+		AvgScore: math.Round(numericToFloat64(row.AvgScore)*10) / 10,
+	}, nil
 }
 
 func upsertTitle(ctx context.Context, q *gen.Queries, title domain.Title) (int64, error) {

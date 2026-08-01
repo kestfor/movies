@@ -54,7 +54,7 @@ func putRating(ratings RatingManager) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"rating": rating})
+		c.JSON(http.StatusOK, gin.H{"rating": rating, "in_watchlist": false})
 	}
 }
 
@@ -94,8 +94,20 @@ func listUserRatings(ratings RatingManager) gin.HandlerFunc {
 			c.JSON(http.StatusUnprocessableEntity, errorResponse("validation_failed", "invalid user uuid"))
 			return
 		}
+		limit := 0
+		if raw := c.Query("limit"); raw != "" {
+			parsed, err := strconv.Atoi(raw)
+			if err != nil || parsed < 1 {
+				c.JSON(http.StatusUnprocessableEntity, errorResponse("validation_failed", "invalid limit"))
+				return
+			}
+			limit = parsed
+		}
 
-		page, err := ratings.ListUserRatingsByUUID(c.Request.Context(), user.ID, targetUUID)
+		page, err := ratings.ListUserRatingsByUUID(
+			c.Request.Context(), user.ID, targetUUID,
+			c.Query("sort"), c.Query("order"), c.Query("cursor"), limit,
+		)
 		if err != nil {
 			writeRatingError(c, err)
 			return

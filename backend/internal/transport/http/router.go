@@ -37,7 +37,15 @@ type CriteriaLister interface {
 type RatingManager interface {
 	Upsert(ctx context.Context, userID int64, mediaType domain.MediaType, tmdbID int64, scores map[string]int) (domain.Rating, error)
 	Delete(ctx context.Context, userID int64, mediaType domain.MediaType, tmdbID int64) error
-	ListUserRatingsByUUID(ctx context.Context, viewerID int64, userUUID string) (domain.ProfileRatingsPage, error)
+	ListUserRatingsByUUID(ctx context.Context, viewerID int64, userUUID, sortBy, order, cursor string, limit int) (domain.ProfileRatingsPage, error)
+}
+
+type WatchlistManager interface {
+	Add(ctx context.Context, userID int64, mediaType domain.MediaType, tmdbID int64) error
+	Remove(ctx context.Context, userID int64, mediaType domain.MediaType, tmdbID int64) error
+	ListByUUID(ctx context.Context, viewerID int64, userUUID, cursor string, limit int) (domain.WatchlistPage, error)
+	IsInWatchlist(ctx context.Context, userID int64, mediaType domain.MediaType, tmdbID int64) (bool, error)
+	Statuses(ctx context.Context, userID int64, refs []domain.TitleRef) (map[domain.TitleRef]bool, error)
 }
 
 type CommentManager interface {
@@ -64,6 +72,11 @@ type FeedLister interface {
 	List(ctx context.Context, userID int64, cursor string, limit int) (domain.FeedPage, error)
 }
 
+type CatalogManager interface {
+	Discover(ctx context.Context, userID int64, mediaFilter, cursor string, limit int) (domain.CatalogPage, error)
+	Recommendations(ctx context.Context, userID int64, cursor string, limit int) (domain.CatalogPage, error)
+}
+
 type NotificationManager interface {
 	List(ctx context.Context, userID int64, cursor string, limit int) (domain.NotificationsPage, error)
 	CountUnread(ctx context.Context, userID int64) (int64, error)
@@ -71,7 +84,7 @@ type NotificationManager interface {
 	MarkAllRead(ctx context.Context, userID int64) error
 }
 
-func NewRouter(authSvc Authenticator, users UserGetter, titles TitleSearcher, criteria CriteriaLister, ratings RatingManager, comments CommentManager, friends FriendManager, feed FeedLister, notificationManager NotificationManager) *gin.Engine {
+func NewRouter(authSvc Authenticator, users UserGetter, titles TitleSearcher, criteria CriteriaLister, ratings RatingManager, watchlist WatchlistManager, comments CommentManager, friends FriendManager, feed FeedLister, catalog CatalogManager, notificationManager NotificationManager) *gin.Engine {
 	router := gin.New()
 	_ = router.SetTrustedProxies(nil)
 	router.Use(gin.Logger(), requestErrorLogger(slog.Default()), gin.Recovery())
@@ -80,10 +93,12 @@ func NewRouter(authSvc Authenticator, users UserGetter, titles TitleSearcher, cr
 	router.GET("/me", authMiddleware(authSvc), me(users))
 	router.GET("/users/search", authMiddleware(authSvc), searchUsers(users))
 	router.GET("/criteria", authMiddleware(authSvc), listCriteria(criteria))
-	router.GET("/search", authMiddleware(authSvc), searchTitles(titles))
-	router.GET("/titles/:type/:tmdb_id", authMiddleware(authSvc), getTitle(titles))
+	router.GET("/search", authMiddleware(authSvc), searchTitles(titles, watchlist))
+	router.GET("/titles/:type/:tmdb_id", authMiddleware(authSvc), getTitle(titles, watchlist))
 	router.PUT("/titles/:type/:tmdb_id/rating", authMiddleware(authSvc), putRating(ratings))
 	router.DELETE("/titles/:type/:tmdb_id/rating", authMiddleware(authSvc), deleteRating(ratings))
+	router.PUT("/titles/:type/:tmdb_id/watchlist", authMiddleware(authSvc), putWatchlistItem(watchlist))
+	router.DELETE("/titles/:type/:tmdb_id/watchlist", authMiddleware(authSvc), deleteWatchlistItem(watchlist))
 	router.GET("/titles/:type/:tmdb_id/comments", authMiddleware(authSvc), listComments(comments))
 	router.POST("/titles/:type/:tmdb_id/comments", authMiddleware(authSvc), postComment(comments))
 	router.PATCH("/comments/:id", authMiddleware(authSvc), patchComment(comments))
@@ -95,7 +110,10 @@ func NewRouter(authSvc Authenticator, users UserGetter, titles TitleSearcher, cr
 	router.DELETE("/friends/requests/:user_uuid", authMiddleware(authSvc), deleteFriendRequest(friends))
 	router.DELETE("/friends/:user_uuid", authMiddleware(authSvc), deleteFriend(friends))
 	router.GET("/users/:id/ratings", authMiddleware(authSvc), listUserRatings(ratings))
+	router.GET("/users/:id/watchlist", authMiddleware(authSvc), listUserWatchlist(watchlist))
 	router.GET("/feed", authMiddleware(authSvc), listFeed(feed))
+	router.GET("/discover", authMiddleware(authSvc), listDiscover(catalog))
+	router.GET("/recommendations", authMiddleware(authSvc), listRecommendations(catalog))
 	router.GET("/notifications", authMiddleware(authSvc), listNotifications(notificationManager))
 	router.GET("/notifications/unread-count", authMiddleware(authSvc), unreadNotificationsCount(notificationManager))
 	router.POST("/notifications/:event_id/read", authMiddleware(authSvc), markNotificationRead(notificationManager))

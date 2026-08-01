@@ -3,6 +3,7 @@ import type {
   ApiErrorBody,
   Comment,
   Criterion,
+  CatalogPage,
   FeedPage,
   FriendRequest,
   Friendship,
@@ -13,6 +14,7 @@ import type {
   TitleCard,
   User,
   UserSearchResult,
+  WatchlistPage,
 } from '../types/api';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -75,7 +77,7 @@ export const api = {
   search: (q: string, page = 1) => request<SearchPage>(`/search${qs({ q, page })}`),
   title: (type: string, id: string | number) => request<TitleCard>(`/titles/${type}/${id}`),
   putRating: (type: string, id: string | number, scores: Record<string, number>) =>
-    request<{ rating: Rating }>(`/titles/${type}/${id}/rating`, {
+    request<{ rating: Rating; in_watchlist: false }>(`/titles/${type}/${id}/rating`, {
       method: 'PUT',
       body: JSON.stringify({ scores }),
     }),
@@ -113,5 +115,21 @@ export const api = {
   markNotificationRead: (eventID: number) =>
     request<void>(`/notifications/${eventID}/read`, { method: 'POST' }),
   markAllNotificationsRead: () => request<void>('/notifications/read-all', { method: 'POST' }),
-  profileRatings: (userUUID: string) => request<ProfileRatingsPage>(`/users/${userUUID}/ratings`),
+  profileRatings: (
+    userUUID: string,
+    cursor?: string,
+    sort?: 'recent' | 'score' | 'title',
+    order?: 'asc' | 'desc',
+    limit = 20,
+  ) => request<ProfileRatingsPage>(`/users/${userUUID}/ratings${qs({ cursor, sort, order, limit })}`),
+  watchlist: (userUUID: string, cursor?: string, limit = 20) =>
+    request<WatchlistPage>(`/users/${userUUID}/watchlist${qs({ cursor, limit })}`),
+  addToWatchlist: (type: string, id: string | number) =>
+    request<{ in_watchlist: true }>(`/titles/${type}/${id}/watchlist`, { method: 'PUT' }),
+  removeFromWatchlist: (type: string, id: string | number) =>
+    request<void>(`/titles/${type}/${id}/watchlist`, { method: 'DELETE' }),
+  discover: (type: 'all' | 'movie' | 'tv', cursor?: string, limit = 20) =>
+    request<CatalogPage>(`/discover${qs({ type, cursor, limit })}`),
+  recommendations: (cursor?: string, limit = 20) =>
+    request<CatalogPage>(`/recommendations${qs({ cursor, limit })}`),
 };

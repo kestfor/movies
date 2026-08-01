@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Bookmark, BookmarkCheck } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
@@ -6,17 +7,19 @@ import { api } from '../api/client';
 import { Comments } from '../components/Comments';
 import { RatingEditor } from '../components/RatingEditor';
 import { Accordion, Poster, RatingCard, ScoreDetails } from '../components/TitleBits';
-import { EmptyState, ErrorState, LoadingState, ScorePill } from '../components/Ui';
+import { Button, EmptyState, ErrorState, LoadingState, ScorePill } from '../components/Ui';
 import { useToast } from '../components/Toast';
 import { getActiveTitleTransitionByRef, getActiveTitleTransitionNameByRef } from '../lib/transitions';
 import type { TitleTransitionSnapshot } from '../lib/transitions';
 import { haptic } from '../lib/telegram';
+import { useWatchlistMutation } from '../hooks/useWatchlistMutation';
 
 export function TitlePage() {
   const { type = '', id = '' } = useParams();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { showToast, showError } = useToast();
+  const watchlistMutation = useWatchlistMutation();
   const [ratingEditorOpen, setRatingEditorOpen] = useState<boolean | undefined>(undefined);
   const [ratingCelebrating, setRatingCelebrating] = useState(false);
   const celebrationTimer = useRef<number | null>(null);
@@ -37,6 +40,9 @@ export function TitlePage() {
     queryClient.invalidateQueries({ queryKey: titleKey });
     queryClient.invalidateQueries({ queryKey: ['feed'] });
     queryClient.invalidateQueries({ queryKey: ['profile'] });
+    queryClient.invalidateQueries({ queryKey: ['profileWatchlist'] });
+    queryClient.invalidateQueries({ queryKey: ['discover'] });
+    queryClient.invalidateQueries({ queryKey: ['recommendations'] });
   };
 
   const saveRating = useMutation({
@@ -46,6 +52,7 @@ export function TitlePage() {
       showToast('Оценка сохранена');
       setRatingEditorOpen(true);
       setRatingCelebrating(true);
+      queryClient.setQueryData(titleKey, (old: typeof card.data) => old ? { ...old, in_watchlist: false } : old);
       refreshTitle();
       if (celebrationTimer.current !== null) window.clearTimeout(celebrationTimer.current);
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -161,6 +168,18 @@ export function TitlePage() {
           {title.overview ? <p className="title-hero__overview">{title.overview}</p> : null}
         </div>
       </section>
+      {!card.data.my_rating ? (
+        <div className="title-watchlist-action">
+          <Button
+            variant="ghost"
+            disabled={watchlistMutation.isPending}
+            onClick={() => watchlistMutation.mutate({ title, inWatchlist: !card.data.in_watchlist })}
+          >
+            {card.data.in_watchlist ? <BookmarkCheck size={18} aria-hidden /> : <Bookmark size={18} aria-hidden />}
+            {card.data.in_watchlist ? 'В списке «Хочу посмотреть»' : 'Хочу посмотреть'}
+          </Button>
+        </div>
+      ) : null}
       <RatingEditor
         criteria={criteria.data.criteria}
         rating={card.data.my_rating}

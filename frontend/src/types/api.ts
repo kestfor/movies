@@ -56,6 +56,20 @@ export type TitleCard = {
   friends_ratings: RatingWithUser[];
   friends_avg: FriendsAverage | null;
   comments_count: number;
+  in_watchlist: boolean;
+};
+
+export type CatalogItem = {
+  title: Title;
+  in_watchlist: boolean;
+  reason?: string;
+};
+
+export type CatalogPage = {
+  items: CatalogItem[];
+  next_cursor?: string;
+  personalized?: boolean;
+  degraded: boolean;
 };
 
 export type Comment = {
@@ -74,7 +88,7 @@ export type SearchPage = {
   page: number;
   total_pages: number;
   total_results: number;
-  results: Title[];
+  results: CatalogItem[];
 };
 
 export type FeedItem = {
@@ -129,6 +143,18 @@ export type ProfileRatingsPage = {
     count: number;
     avg_score: number;
   };
+  next_cursor?: string;
+};
+
+export type WatchlistItem = {
+  title: Title;
+  added_at: string;
+};
+
+export type WatchlistPage = {
+  items: WatchlistItem[];
+  total_count: number;
+  next_cursor?: string;
 };
 
 export type FriendRequest = {

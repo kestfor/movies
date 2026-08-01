@@ -74,7 +74,7 @@ Title routes use external TMDB identity: `:type` is `movie` or `tv`, `:tmdb_id` 
 
 ### `GET /search?q=&page=`
 
-Searches TMDB `/search/multi`. Person results are filtered out. Search remains lightweight and does not include social data.
+Searches TMDB `/search/multi`. Person results are filtered out. Each result is wrapped with the current user's watchlist state.
 
 ```json
 {
@@ -83,13 +83,16 @@ Searches TMDB `/search/multi`. Person results are filtered out. Search remains l
   "total_results": 126,
   "results": [
     {
-      "tmdb_id": 603,
-      "media_type": "movie",
-      "title": "Матрица",
-      "original_title": "The Matrix",
-      "release_year": 1999,
-      "poster_path": "https://image.tmdb.org/t/p/w500/dXNAPwY7VrqMAo51EKhhCJfaGb5.jpg",
-      "overview": "..."
+      "title": {
+        "tmdb_id": 603,
+        "media_type": "movie",
+        "title": "Матрица",
+        "original_title": "The Matrix",
+        "release_year": 1999,
+        "poster_path": "https://image.tmdb.org/t/p/w500/dXNAPwY7VrqMAo51EKhhCJfaGb5.jpg",
+        "overview": "..."
+      },
+      "in_watchlist": true
     }
   ]
 }
@@ -132,7 +135,8 @@ Returns a title card. Social fields are populated only if the title snapshot exi
     "overall": 8.8,
     "by_criteria": { "story": 9, "sound": 8.5 }
   },
-  "comments_count": 3
+  "comments_count": 3,
+  "in_watchlist": true
 }
 ```
 
@@ -165,7 +169,8 @@ Returns:
     "scores": { "story": 8, "sound": 9 },
     "created_at": "2026-07-11T14:00:00Z",
     "updated_at": "2026-07-11T14:00:00Z"
-  }
+  },
+  "in_watchlist": false
 }
 ```
 
@@ -389,9 +394,11 @@ Returns ratings from accepted friends only. Sorted by `(created_at, id) DESC`.
 
 ## Profile Ratings
 
-### `GET /users/:id/ratings`
+### `GET /users/:id/ratings?sort=&order=&cursor=&limit=`
 
 Returns ratings and stats for current user or accepted friend. For non-friends returns empty ratings and zero stats.
+
+`sort` is `recent`, `score`, or `title`; `order` is `asc` or `desc`. Defaults are `recent desc`. `limit` defaults to `20`, max `50`. Statistics cover the complete collection, not only the returned page.
 
 ```json
 {
@@ -412,7 +419,62 @@ Returns ratings and stats for current user or accepted friend. For non-friends r
   "stats": {
     "count": 1,
     "avg_score": 8.5
-  }
+  },
+  "next_cursor": "opaque"
+}
+```
+
+## Discovery and Recommendations
+
+### `GET /discover?type=&cursor=&limit=`
+
+Returns unrated TMDB titles ordered by popularity. `type` is `all`, `movie`, or `tv` and defaults to `all`. A watchlisted title remains in Discover and is marked with `in_watchlist`. If one TMDB media source fails, available results are returned with `degraded: true`.
+
+### `GET /recommendations?cursor=&limit=`
+
+Returns titles ranked from the current user's highest ratings and genre affinities. Rated and watchlisted titles are excluded. Before three ratings, popular content is returned with `personalized: false`.
+
+Both endpoints use this page shape:
+
+```json
+{
+  "items": [
+    {
+      "title": { "tmdb_id": 603, "media_type": "movie", "title": "Матрица" },
+      "in_watchlist": false,
+      "reason": "Похоже на «Начало»"
+    }
+  ],
+  "next_cursor": "opaque",
+  "personalized": true,
+  "degraded": false
+}
+```
+
+## Watchlist
+
+### `PUT /titles/:type/:tmdb_id/watchlist`
+
+Idempotently adds an unrated title to the current user's watchlist and returns `{ "in_watchlist": true }`. An already rated title returns `409 already_rated`.
+
+### `DELETE /titles/:type/:tmdb_id/watchlist`
+
+Idempotently removes a title and returns `204 No Content`.
+
+### `GET /users/:id/watchlist?cursor=&limit=`
+
+Returns the owner's or an accepted friend's watchlist, newest additions first. Non-friends receive an empty list.
+
+```json
+{
+  "items": [
+    {
+      "title": { "tmdb_id": 603, "media_type": "movie", "title": "Матрица" },
+      "added_at": "2026-08-02T10:00:00Z"
+    }
+  ],
+  "total_count": 1,
+  "next_cursor": "opaque"
 }
 ```
 

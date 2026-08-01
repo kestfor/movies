@@ -1,4 +1,4 @@
-import { Film, Search, Users, UserRound } from 'lucide-react';
+import { Compass, Film, Users, UserRound } from 'lucide-react';
 import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
@@ -16,7 +16,7 @@ import {
 
 const tabs = [
   { to: '/feed', label: 'Лента', icon: Film },
-  { to: '/search', label: 'Поиск', icon: Search },
+  { to: '/watch', label: 'Смотреть', icon: Compass },
   { to: '/friends', label: 'Друзья', icon: Users },
   { to: '/profile/me', label: 'Профиль', icon: UserRound },
 ];
@@ -99,7 +99,7 @@ export function Shell() {
 
 function tabIndexForPath(pathname: string) {
   if (pathname === '/feed') return 0;
-  if (pathname.startsWith('/search')) return 1;
+  if (pathname.startsWith('/watch') || pathname.startsWith('/search')) return 1;
   if (pathname.startsWith('/friends')) return 2;
   if (pathname.startsWith('/profile')) return 3;
   return -1;

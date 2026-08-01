@@ -26,6 +26,43 @@ type SearchPage struct {
 	Results      []SearchResult `json:"results"`
 }
 
+type TitleRef struct {
+	TmdbID    int64     `json:"tmdb_id"`
+	MediaType MediaType `json:"media_type"`
+}
+
+type CatalogCandidate struct {
+	Title      Title   `json:"title"`
+	Popularity float64 `json:"-"`
+	GenreIDs   []int64 `json:"-"`
+}
+
+type CatalogProviderPage struct {
+	Page       int
+	TotalPages int
+	Results    []CatalogCandidate
+}
+
+type CatalogItem struct {
+	Title       Title  `json:"title"`
+	InWatchlist bool   `json:"in_watchlist"`
+	Reason      string `json:"reason,omitempty"`
+}
+
+type CatalogPage struct {
+	Items        []CatalogItem `json:"items"`
+	NextCursor   string        `json:"next_cursor,omitempty"`
+	Personalized bool          `json:"personalized,omitempty"`
+	Degraded     bool          `json:"degraded"`
+}
+
+type CatalogSearchPage struct {
+	Page         int           `json:"page"`
+	TotalPages   int           `json:"total_pages"`
+	TotalResults int           `json:"total_results"`
+	Results      []CatalogItem `json:"results"`
+}
+
 type Title struct {
 	ID            int64     `json:"id,omitempty"`
 	TmdbID        int64     `json:"tmdb_id"`
@@ -75,9 +112,11 @@ type TitleCard struct {
 	FriendsRatings []RatingWithUser `json:"friends_ratings"`
 	FriendsAvg     *FriendsAverage  `json:"friends_avg"`
 	CommentsCount  int64            `json:"comments_count"`
+	InWatchlist    bool             `json:"in_watchlist"`
 }
 
 type ProfileRating struct {
+	ID        int64          `json:"-"`
 	Title     Title          `json:"title"`
 	AvgScore  float64        `json:"avg_score"`
 	Scores    map[string]int `json:"scores"`
@@ -95,6 +134,30 @@ type ProfileRatingsPage struct {
 	Relationship string             `json:"relationship"`
 	Ratings      []ProfileRating    `json:"ratings"`
 	Stats        ProfileRatingStats `json:"stats"`
+	NextCursor   string             `json:"next_cursor,omitempty"`
+}
+
+type WatchlistItem struct {
+	Title   Title     `json:"title"`
+	AddedAt time.Time `json:"added_at"`
+}
+
+type WatchlistPage struct {
+	Items      []WatchlistItem `json:"items"`
+	TotalCount int64           `json:"total_count"`
+	NextCursor string          `json:"next_cursor,omitempty"`
+}
+
+type RecommendationSeed struct {
+	RatingID  int64
+	Title     Title
+	AvgScore  float64
+	UpdatedAt time.Time
+}
+
+type GenreRating struct {
+	AvgScore float64
+	Genres   []string
 }
 
 type FeedItem struct {

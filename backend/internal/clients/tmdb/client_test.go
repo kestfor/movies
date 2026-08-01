@@ -128,6 +128,69 @@ func TestClientReturnsNotFound(t *testing.T) {
 	}
 }
 
+func TestClientDiscoverMapsMovieMetadataAndCachesGenres(t *testing.T) {
+	var discoverHits, genreHits int32
+	client := NewClient("https://tmdb.local", "token", "ru-RU", &http.Client{
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			switch req.URL.Path {
+			case "/discover/movie":
+				atomic.AddInt32(&discoverHits, 1)
+				if req.URL.Query().Get("page") != "1" || req.URL.Query().Get("sort_by") != "popularity.desc" {
+					t.Fatalf("unexpected discover query: %s", req.URL.RawQuery)
+				}
+				return jsonResponse(map[string]any{
+					"page": 1, "total_pages": 2,
+					"results": []map[string]any{{
+						"id": 603, "title": "Матрица", "release_date": "1999-03-31",
+						"genre_ids": []int{28}, "popularity": 99.5, "poster_path": "/matrix.jpg",
+					}},
+				}), nil
+			case "/genre/movie/list":
+				atomic.AddInt32(&genreHits, 1)
+				return jsonResponse(map[string]any{"genres": []map[string]any{{"id": 28, "name": "Боевик"}}}), nil
+			default:
+				t.Fatalf("unexpected path: %s", req.URL.Path)
+				return nil, nil
+			}
+		}),
+	}, time.Minute)
+
+	page, err := client.Discover(context.Background(), domain.MediaTypeMovie, 1)
+	if err != nil || len(page.Results) != 1 {
+		t.Fatalf("Discover() page=%#v err=%v", page, err)
+	}
+	item := page.Results[0]
+	if item.Title.Title != "Матрица" || item.Popularity != 99.5 || len(item.Title.Genres) != 1 || item.Title.Genres[0] != "Боевик" {
+		t.Fatalf("unexpected candidate: %#v", item)
+	}
+	if _, err := client.Discover(context.Background(), domain.MediaTypeMovie, 1); err != nil {
+		t.Fatalf("second Discover() error=%v", err)
+	}
+	if discoverHits != 1 || genreHits != 1 {
+		t.Fatalf("cache misses: discover=%d genres=%d", discoverHits, genreHits)
+	}
+}
+
+func TestClientTVRecommendationsUseV3Endpoint(t *testing.T) {
+	client := NewClient("https://tmdb.local", "token", "ru-RU", &http.Client{
+		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			switch req.URL.Path {
+			case "/tv/1396/recommendations":
+				return jsonResponse(map[string]any{"page": 1, "total_pages": 1, "results": []map[string]any{{"id": 1399, "name": "Игра престолов"}}}), nil
+			case "/genre/tv/list":
+				return jsonResponse(map[string]any{"genres": []map[string]any{}}), nil
+			default:
+				t.Fatalf("unexpected path: %s", req.URL.Path)
+				return nil, nil
+			}
+		}),
+	}, time.Minute)
+	page, err := client.Recommendations(context.Background(), domain.MediaTypeTV, 1396)
+	if err != nil || len(page.Results) != 1 || page.Results[0].Title.MediaType != domain.MediaTypeTV {
+		t.Fatalf("Recommendations() page=%#v err=%v", page, err)
+	}
+}
+
 func jsonResponse(body any) *http.Response {
 	data, _ := json.Marshal(body)
 	return &http.Response{

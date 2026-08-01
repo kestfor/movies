@@ -73,6 +73,27 @@ type fakeRatingManager struct {
 	err    error
 }
 
+type fakeWatchlistManager struct {
+	page domain.WatchlistPage
+	err  error
+}
+
+func (f fakeWatchlistManager) Add(context.Context, int64, domain.MediaType, int64) error {
+	return f.err
+}
+func (f fakeWatchlistManager) Remove(context.Context, int64, domain.MediaType, int64) error {
+	return f.err
+}
+func (f fakeWatchlistManager) ListByUUID(context.Context, int64, string, string, int) (domain.WatchlistPage, error) {
+	return f.page, f.err
+}
+func (f fakeWatchlistManager) IsInWatchlist(context.Context, int64, domain.MediaType, int64) (bool, error) {
+	return false, f.err
+}
+func (f fakeWatchlistManager) Statuses(context.Context, int64, []domain.TitleRef) (map[domain.TitleRef]bool, error) {
+	return map[domain.TitleRef]bool{}, f.err
+}
+
 func (f fakeRatingManager) Upsert(context.Context, int64, domain.MediaType, int64, map[string]int) (domain.Rating, error) {
 	return f.rating, f.err
 }
@@ -81,7 +102,7 @@ func (f fakeRatingManager) Delete(context.Context, int64, domain.MediaType, int6
 	return f.err
 }
 
-func (f fakeRatingManager) ListUserRatingsByUUID(context.Context, int64, string) (domain.ProfileRatingsPage, error) {
+func (f fakeRatingManager) ListUserRatingsByUUID(context.Context, int64, string, string, string, string, int) (domain.ProfileRatingsPage, error) {
 	return domain.ProfileRatingsPage{}, f.err
 }
 
@@ -159,6 +180,18 @@ type fakeFeedLister struct {
 	err  error
 }
 
+type fakeCatalogManager struct {
+	page domain.CatalogPage
+	err  error
+}
+
+func (f fakeCatalogManager) Discover(context.Context, int64, string, string, int) (domain.CatalogPage, error) {
+	return f.page, f.err
+}
+func (f fakeCatalogManager) Recommendations(context.Context, int64, string, int) (domain.CatalogPage, error) {
+	return f.page, f.err
+}
+
 func (f fakeFeedLister) List(context.Context, int64, string, int) (domain.FeedPage, error) {
 	return f.page, f.err
 }
@@ -197,7 +230,7 @@ func TestMeReturnsCurrentUser(t *testing.T) {
 		PhotoURL:  "https://photo",
 		CreatedAt: time.Unix(1, 0).UTC(),
 	}
-	router := NewRouter(fakeAuthenticator{user: want}, fakeUserGetter{user: want}, fakeTitleSearcher{}, fakeCriteriaLister{}, fakeRatingManager{}, fakeCommentManager{}, fakeFriendManager{}, fakeFeedLister{}, fakeNotificationManager{})
+	router := NewRouter(fakeAuthenticator{user: want}, fakeUserGetter{user: want}, fakeTitleSearcher{}, fakeCriteriaLister{}, fakeRatingManager{}, fakeWatchlistManager{}, fakeCommentManager{}, fakeFriendManager{}, fakeFeedLister{}, fakeCatalogManager{}, fakeNotificationManager{})
 
 	req := httptest.NewRequest(http.MethodGet, "/me", nil)
 	req.Header.Set("Authorization", "tma init-data")
@@ -227,7 +260,7 @@ func TestMeReturnsCurrentUser(t *testing.T) {
 func TestMeRejectsMissingAuthHeader(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	router := NewRouter(fakeAuthenticator{}, fakeUserGetter{}, fakeTitleSearcher{}, fakeCriteriaLister{}, fakeRatingManager{}, fakeCommentManager{}, fakeFriendManager{}, fakeFeedLister{}, fakeNotificationManager{})
+	router := NewRouter(fakeAuthenticator{}, fakeUserGetter{}, fakeTitleSearcher{}, fakeCriteriaLister{}, fakeRatingManager{}, fakeWatchlistManager{}, fakeCommentManager{}, fakeFriendManager{}, fakeFeedLister{}, fakeCatalogManager{}, fakeNotificationManager{})
 
 	req := httptest.NewRequest(http.MethodGet, "/me", nil)
 	rec := httptest.NewRecorder()
@@ -257,9 +290,11 @@ func TestSearchReturnsResults(t *testing.T) {
 		}},
 		fakeCriteriaLister{},
 		fakeRatingManager{},
+		fakeWatchlistManager{},
 		fakeCommentManager{},
 		fakeFriendManager{},
 		fakeFeedLister{},
+		fakeCatalogManager{},
 		fakeNotificationManager{},
 	)
 
@@ -293,9 +328,11 @@ func TestUserSearchReturnsRelationshipResults(t *testing.T) {
 		fakeTitleSearcher{},
 		fakeCriteriaLister{},
 		fakeRatingManager{},
+		fakeWatchlistManager{},
 		fakeCommentManager{},
 		fakeFriendManager{},
 		fakeFeedLister{},
+		fakeCatalogManager{},
 		fakeNotificationManager{},
 	)
 
@@ -327,9 +364,11 @@ func TestGetTitleReturnsTitle(t *testing.T) {
 		fakeTitleSearcher{title: want},
 		fakeCriteriaLister{},
 		fakeRatingManager{},
+		fakeWatchlistManager{},
 		fakeCommentManager{},
 		fakeFriendManager{},
 		fakeFeedLister{},
+		fakeCatalogManager{},
 		fakeNotificationManager{},
 	)
 
@@ -344,5 +383,47 @@ func TestGetTitleReturnsTitle(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "\"title\":{\"tmdb_id\":603") {
 		t.Fatalf("response does not contain title: %s", rec.Body.String())
+	}
+}
+
+func TestDiscoverReturnsCatalogItems(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := NewRouter(
+		fakeAuthenticator{user: domain.User{ID: 1}}, fakeUserGetter{}, fakeTitleSearcher{}, fakeCriteriaLister{},
+		fakeRatingManager{}, fakeWatchlistManager{}, fakeCommentManager{}, fakeFriendManager{}, fakeFeedLister{},
+		fakeCatalogManager{page: domain.CatalogPage{Items: []domain.CatalogItem{{
+			Title: domain.Title{TmdbID: 603, MediaType: domain.MediaTypeMovie, Title: "Матрица"}, InWatchlist: true,
+		}}}}, fakeNotificationManager{},
+	)
+	req := httptest.NewRequest(http.MethodGet, "/discover?type=movie&limit=20", nil)
+	req.Header.Set("Authorization", "tma init-data")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "\"in_watchlist\":true") {
+		t.Fatalf("unexpected response status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestWatchlistRoutesAreIdempotent(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := NewRouter(
+		fakeAuthenticator{user: domain.User{ID: 1}}, fakeUserGetter{}, fakeTitleSearcher{}, fakeCriteriaLister{},
+		fakeRatingManager{}, fakeWatchlistManager{}, fakeCommentManager{}, fakeFriendManager{}, fakeFeedLister{},
+		fakeCatalogManager{}, fakeNotificationManager{},
+	)
+	for _, test := range []struct {
+		method string
+		want   int
+	}{
+		{http.MethodPut, http.StatusOK},
+		{http.MethodDelete, http.StatusNoContent},
+	} {
+		req := httptest.NewRequest(test.method, "/titles/movie/603/watchlist", nil)
+		req.Header.Set("Authorization", "tma init-data")
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != test.want {
+			t.Fatalf("%s status=%d want=%d body=%s", test.method, rec.Code, test.want, rec.Body.String())
+		}
 	}
 }
