@@ -1731,6 +1731,18 @@ a {
   }
 }
 
+@keyframes tab-panel-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes skeleton-shimmer {
   from {
     background-position: 120% 0;
@@ -1785,10 +1797,9 @@ a {
   background: color-mix(in srgb, var(--tg-button) 22%, var(--tg-secondary-bg));
 }
 
-.segmented button span {
-  margin-left: 4px;
-  color: var(--tg-hint);
-  font-size: 12px;
+.tab-panel-transition {
+  animation: tab-panel-fade 180ms cubic-bezier(0.22, 0.72, 0, 1) both;
+  will-change: opacity, transform;
 }
 
 .filter-chips {
@@ -1806,20 +1817,52 @@ a {
   white-space: nowrap;
 }
 
-.sort-control {
+.sort-toolbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-end;
   margin: 0 0 12px;
 }
 
-.sort-control select {
-  min-height: 40px;
-  max-width: 70%;
-  padding: 0 32px 0 12px;
+.sort-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  max-width: 100%;
+  padding: 0 10px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 9px;
+  color: var(--tg-text);
+  background: color-mix(in srgb, var(--tg-secondary-bg) 88%, var(--tg-bg));
+  cursor: pointer;
+}
+
+.sort-control:focus-within {
+  border-color: color-mix(in srgb, var(--tg-button) 65%, var(--border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tg-button) 20%, transparent);
+}
+
+.sort-control > svg {
+  flex: 0 0 auto;
+  color: var(--tg-hint);
+}
+
+.sort-control select {
+  min-width: 0;
+  max-width: min(62vw, 220px);
+  padding: 0;
+  border: 0;
+  outline: 0;
+  appearance: none;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.sort-control select option {
   color: var(--tg-text);
   background: var(--tg-secondary-bg);
 }
@@ -1949,6 +1992,11 @@ a {
 
   .page-transition {
     animation: none;
+  }
+
+  .tab-panel-transition {
+    animation: none;
+    will-change: auto;
   }
 
   .rating-save-celebration__particles {

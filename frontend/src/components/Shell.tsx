@@ -38,7 +38,7 @@ export function Shell() {
     if (!didMount.current) return;
     if (consumePreserveScroll()) return;
     window.scrollTo(0, 0);
-  }, [location.pathname, location.search]);
+  }, [location.pathname]);
 
   useEffect(() => {
     const back = () => {
@@ -59,7 +59,7 @@ export function Shell() {
     <div className="app-shell">
       <main className="content">
         <div
-          key={location.key}
+          key={location.pathname}
           className={
             didMount.current && !suppressPageTransition
               ? `page-transition page-transition--${pageDirection}`

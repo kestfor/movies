@@ -1,4 +1,4 @@
-import { Check, Clock, UserMinus, UserPlus } from 'lucide-react';
+import { ArrowUpDown, Check, ChevronDown, Clock, UserMinus, UserPlus } from 'lucide-react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
@@ -142,53 +142,58 @@ export function ProfilePage() {
 
       <div className="segmented" role="tablist" aria-label="Разделы профиля">
         <button className={activeTab === 'ratings' ? 'is-active' : ''} role="tab" aria-selected={activeTab === 'ratings'} onClick={() => setParam('tab', 'ratings')}>
-          Оценки <span>{firstPage?.stats.count || 0}</span>
+          Оценки
         </button>
         <button className={activeTab === 'watchlist' ? 'is-active' : ''} role="tab" aria-selected={activeTab === 'watchlist'} onClick={() => setParam('tab', 'watchlist')}>
-          Хочу посмотреть {watchlist.data?.pages[0] ? <span>{watchlist.data.pages[0].total_count}</span> : null}
+          Хочу посмотреть
         </button>
       </div>
 
-      {activeTab === 'ratings' ? (
-        <section aria-label="Оценки пользователя">
-          <label className="sort-control">
-            <span className="muted">Сортировка</span>
-            <select value={sortKey} onChange={(event) => setParam('sort', event.target.value)}>
-              {Object.entries(sortPresets).map(([value, preset]) => <option key={value} value={value}>{preset.label}</option>)}
-            </select>
-          </label>
-          {ratings.length ? (
-            <div className="stack">
-              {ratings.map((rating) => <TitleRow key={`${rating.title.media_type}-${rating.title.tmdb_id}`} title={rating.title} score={rating.avg_score} />)}
-              <InfiniteLoad hasNext={Boolean(profile.hasNextPage)} loading={profile.isFetchingNextPage} onLoad={() => profile.fetchNextPage()} />
+      <div key={activeTab} className="tab-panel-transition">
+        {activeTab === 'ratings' ? (
+          <section aria-label="Оценки пользователя">
+            <div className="sort-toolbar">
+              <label className="sort-control">
+                <ArrowUpDown size={16} aria-hidden />
+                <select aria-label="Сортировка оценок" value={sortKey} onChange={(event) => setParam('sort', event.target.value)}>
+                  {Object.entries(sortPresets).map(([value, preset]) => <option key={value} value={value}>{preset.label}</option>)}
+                </select>
+                <ChevronDown size={15} aria-hidden />
+              </label>
             </div>
-          ) : (
-            <EmptyState title="Оценок нет" text={own ? 'Поставьте первую оценку на экране «Смотреть».' : 'Профиль пуст или закрыт для не-друзей.'} />
-          )}
-        </section>
-      ) : (
-        <section aria-label="Хочу посмотреть">
-          {watchlist.isLoading ? <LoadingState label="Загружаем список" /> : null}
-          {watchlist.isError ? <ErrorState error={watchlist.error} /> : null}
-          {!watchlist.isLoading && !watchlist.isError && watchlistItems.length ? (
-            <div className="stack">
-              {watchlistItems.map((item) => (
-                <CatalogCard
-                  key={`${item.title.media_type}-${item.title.tmdb_id}`}
-                  item={item}
-                  writable={own}
-                  pending={watchlistMutation.isPending}
-                  onToggle={(next) => watchlistMutation.mutate({ title: item.title, inWatchlist: next })}
-                />
-              ))}
-              <InfiniteLoad hasNext={Boolean(watchlist.hasNextPage)} loading={watchlist.isFetchingNextPage} onLoad={() => watchlist.fetchNextPage()} />
-            </div>
-          ) : null}
-          {!watchlist.isLoading && !watchlist.isError && !watchlistItems.length ? (
-            <EmptyState title="Список пуст" text={own ? 'Добавляйте фильмы и сериалы на экране «Смотреть».' : 'Друг пока ничего не добавил.'} />
-          ) : null}
-        </section>
-      )}
+            {ratings.length ? (
+              <div className="stack">
+                {ratings.map((rating) => <TitleRow key={`${rating.title.media_type}-${rating.title.tmdb_id}`} title={rating.title} score={rating.avg_score} />)}
+                <InfiniteLoad hasNext={Boolean(profile.hasNextPage)} loading={profile.isFetchingNextPage} onLoad={() => profile.fetchNextPage()} />
+              </div>
+            ) : (
+              <EmptyState title="Оценок нет" text={own ? 'Поставьте первую оценку на экране «Смотреть».' : 'Профиль пуст или закрыт для не-друзей.'} />
+            )}
+          </section>
+        ) : (
+          <section aria-label="Хочу посмотреть">
+            {watchlist.isLoading ? <LoadingState label="Загружаем список" /> : null}
+            {watchlist.isError ? <ErrorState error={watchlist.error} /> : null}
+            {!watchlist.isLoading && !watchlist.isError && watchlistItems.length ? (
+              <div className="stack">
+                {watchlistItems.map((item) => (
+                  <CatalogCard
+                    key={`${item.title.media_type}-${item.title.tmdb_id}`}
+                    item={item}
+                    writable={own}
+                    pending={watchlistMutation.isPending}
+                    onToggle={(next) => watchlistMutation.mutate({ title: item.title, inWatchlist: next })}
+                  />
+                ))}
+                <InfiniteLoad hasNext={Boolean(watchlist.hasNextPage)} loading={watchlist.isFetchingNextPage} onLoad={() => watchlist.fetchNextPage()} />
+              </div>
+            ) : null}
+            {!watchlist.isLoading && !watchlist.isError && !watchlistItems.length ? (
+              <EmptyState title="Список пуст" text={own ? 'Добавляйте фильмы и сериалы на экране «Смотреть».' : 'Друг пока ничего не добавил.'} />
+            ) : null}
+          </section>
+        )}
+      </div>
     </>
   );
 }

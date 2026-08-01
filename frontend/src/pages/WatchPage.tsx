@@ -76,48 +76,53 @@ export function WatchPage() {
       </label>
 
       {!searching ? (
-        <>
-          <div className="segmented" role="tablist" aria-label="Режим просмотра">
-            <button role="tab" aria-selected={activeTab === 'discover'} className={activeTab === 'discover' ? 'is-active' : ''} onClick={() => setParam('tab', 'discover')}>
-              Обзор
-            </button>
-            <button role="tab" aria-selected={activeTab === 'recommendations'} className={activeTab === 'recommendations' ? 'is-active' : ''} onClick={() => setParam('tab', 'recommendations')}>
-              Для вас
-            </button>
-          </div>
-          {activeTab === 'discover' ? (
-            <div className="filter-chips" aria-label="Тип контента">
-              {([['all', 'Всё'], ['movie', 'Фильмы'], ['tv', 'Сериалы']] as const).map(([value, label]) => (
-                <button key={value} className={mediaFilter === value ? 'is-active' : ''} aria-pressed={mediaFilter === value} onClick={() => setParam('type', value)}>{label}</button>
-              ))}
-            </div>
-          ) : null}
-          {activeTab === 'recommendations' && personalized === false ? (
-            <div className="catalog-notice"><Compass size={17} aria-hidden /> Оцените хотя бы три тайтла — подборка станет персональной.</div>
-          ) : null}
-        </>
-      ) : null}
-
-      {query.trim().length > 0 && query.trim().length < 2 ? <EmptyState title="Введите ещё символ" text="Для поиска нужно минимум два символа." /> : null}
-      {source.isLoading ? <LoadingState label={searching ? 'Ищем' : 'Собираем подборку'} /> : null}
-      {source.isError ? <ErrorState error={source.error} /> : null}
-      {degraded ? <div className="catalog-notice">Часть каталога временно недоступна, показываем оставшиеся результаты.</div> : null}
-      {!source.isLoading && !source.isError && items.length ? (
-        <div className="stack">
-          {items.map((item) => (
-            <CatalogCard
-              key={`${item.title.media_type}-${item.title.tmdb_id}`}
-              item={item}
-              pending={watchlist.isPending}
-              onToggle={(next) => watchlist.mutate({ title: item.title, inWatchlist: next })}
-            />
-          ))}
-          <InfiniteLoad hasNext={Boolean(source.hasNextPage)} loading={source.isFetchingNextPage} onLoad={() => source.fetchNextPage()} />
+        <div className="segmented" role="tablist" aria-label="Режим просмотра">
+          <button role="tab" aria-selected={activeTab === 'discover'} className={activeTab === 'discover' ? 'is-active' : ''} onClick={() => setParam('tab', 'discover')}>
+            Обзор
+          </button>
+          <button role="tab" aria-selected={activeTab === 'recommendations'} className={activeTab === 'recommendations' ? 'is-active' : ''} onClick={() => setParam('tab', 'recommendations')}>
+            Для вас
+          </button>
         </div>
       ) : null}
-      {!source.isLoading && !source.isError && !items.length && (searching || !query.trim()) ? (
-        <EmptyState title={searching ? 'Ничего не найдено' : 'Подборка закончилась'} text={searching ? 'Попробуйте другое название.' : 'Загляните сюда немного позже.'} />
-      ) : null}
+
+      <div key={activeTab} className="tab-panel-transition">
+        {!searching ? (
+          <>
+            {activeTab === 'discover' ? (
+              <div className="filter-chips" aria-label="Тип контента">
+                {([['all', 'Всё'], ['movie', 'Фильмы'], ['tv', 'Сериалы']] as const).map(([value, label]) => (
+                  <button key={value} className={mediaFilter === value ? 'is-active' : ''} aria-pressed={mediaFilter === value} onClick={() => setParam('type', value)}>{label}</button>
+                ))}
+              </div>
+            ) : null}
+            {activeTab === 'recommendations' && personalized === false ? (
+              <div className="catalog-notice"><Compass size={17} aria-hidden /> Оцените хотя бы три тайтла — подборка станет персональной.</div>
+            ) : null}
+          </>
+        ) : null}
+
+        {query.trim().length > 0 && query.trim().length < 2 ? <EmptyState title="Введите ещё символ" text="Для поиска нужно минимум два символа." /> : null}
+        {source.isLoading ? <LoadingState label={searching ? 'Ищем' : 'Собираем подборку'} /> : null}
+        {source.isError ? <ErrorState error={source.error} /> : null}
+        {degraded ? <div className="catalog-notice">Часть каталога временно недоступна, показываем оставшиеся результаты.</div> : null}
+        {!source.isLoading && !source.isError && items.length ? (
+          <div className="stack">
+            {items.map((item) => (
+              <CatalogCard
+                key={`${item.title.media_type}-${item.title.tmdb_id}`}
+                item={item}
+                pending={watchlist.isPending}
+                onToggle={(next) => watchlist.mutate({ title: item.title, inWatchlist: next })}
+              />
+            ))}
+            <InfiniteLoad hasNext={Boolean(source.hasNextPage)} loading={source.isFetchingNextPage} onLoad={() => source.fetchNextPage()} />
+          </div>
+        ) : null}
+        {!source.isLoading && !source.isError && !items.length && (searching || !query.trim()) ? (
+          <EmptyState title={searching ? 'Ничего не найдено' : 'Подборка закончилась'} text={searching ? 'Попробуйте другое название.' : 'Загляните сюда немного позже.'} />
+        ) : null}
+      </div>
     </>
   );
 }
