@@ -34,14 +34,14 @@ export function WatchPage() {
     queryFn: ({ pageParam }) => api.discover(mediaFilter, pageParam),
     getNextPageParam: (last) => last.next_cursor || undefined,
     initialPageParam: undefined as string | undefined,
-    enabled: !searching && activeTab === 'discover',
+    enabled: !searching,
   });
   const recommendations = useInfiniteQuery({
     queryKey: ['recommendations'],
     queryFn: ({ pageParam }) => api.recommendations(pageParam),
     getNextPageParam: (last) => last.next_cursor || undefined,
     initialPageParam: undefined as string | undefined,
-    enabled: !searching && activeTab === 'recommendations',
+    enabled: !searching,
   });
 
   const setParam = (key: string, value?: string) => {
@@ -61,6 +61,7 @@ export function WatchPage() {
     ? discover.data?.pages.some((page) => page.degraded)
     : recommendations.data?.pages.some((page) => page.degraded));
   const personalized = recommendations.data?.pages[0]?.personalized;
+  const sourceState = source.isLoading ? 'loading' : source.isError ? 'error' : 'ready';
 
   return (
     <>
@@ -102,26 +103,28 @@ export function WatchPage() {
           </>
         ) : null}
 
-        {query.trim().length > 0 && query.trim().length < 2 ? <EmptyState title="Введите ещё символ" text="Для поиска нужно минимум два символа." /> : null}
-        {source.isLoading ? <LoadingState label={searching ? 'Ищем' : 'Собираем подборку'} /> : null}
-        {source.isError ? <ErrorState error={source.error} /> : null}
-        {degraded ? <div className="catalog-notice">Часть каталога временно недоступна, показываем оставшиеся результаты.</div> : null}
-        {!source.isLoading && !source.isError && items.length ? (
-          <div className="stack">
-            {items.map((item) => (
-              <CatalogCard
-                key={`${item.title.media_type}-${item.title.tmdb_id}`}
-                item={item}
-                pending={watchlist.isPending}
-                onToggle={(next) => watchlist.mutate({ title: item.title, inWatchlist: next })}
-              />
-            ))}
-            <InfiniteLoad hasNext={Boolean(source.hasNextPage)} loading={source.isFetchingNextPage} onLoad={() => source.fetchNextPage()} />
-          </div>
-        ) : null}
-        {!source.isLoading && !source.isError && !items.length && (searching || !query.trim()) ? (
-          <EmptyState title={searching ? 'Ничего не найдено' : 'Подборка закончилась'} text={searching ? 'Попробуйте другое название.' : 'Загляните сюда немного позже.'} />
-        ) : null}
+        <div key={sourceState} className="async-content-fade">
+          {query.trim().length > 0 && query.trim().length < 2 ? <EmptyState title="Введите ещё символ" text="Для поиска нужно минимум два символа." /> : null}
+          {source.isLoading ? <LoadingState label={searching ? 'Ищем' : 'Собираем подборку'} /> : null}
+          {source.isError ? <ErrorState error={source.error} /> : null}
+          {degraded ? <div className="catalog-notice">Часть каталога временно недоступна, показываем оставшиеся результаты.</div> : null}
+          {!source.isLoading && !source.isError && items.length ? (
+            <div className="stack">
+              {items.map((item) => (
+                <CatalogCard
+                  key={`${item.title.media_type}-${item.title.tmdb_id}`}
+                  item={item}
+                  pending={watchlist.isPending}
+                  onToggle={(next) => watchlist.mutate({ title: item.title, inWatchlist: next })}
+                />
+              ))}
+              <InfiniteLoad hasNext={Boolean(source.hasNextPage)} loading={source.isFetchingNextPage} onLoad={() => source.fetchNextPage()} />
+            </div>
+          ) : null}
+          {!source.isLoading && !source.isError && !items.length && (searching || !query.trim()) ? (
+            <EmptyState title={searching ? 'Ничего не найдено' : 'Подборка закончилась'} text={searching ? 'Попробуйте другое название.' : 'Загляните сюда немного позже.'} />
+          ) : null}
+        </div>
       </div>
     </>
   );

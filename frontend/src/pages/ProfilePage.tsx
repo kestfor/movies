@@ -1,4 +1,4 @@
-import { ArrowUpDown, Check, ChevronDown, Clock, UserMinus, UserPlus } from 'lucide-react';
+import { ArrowUpDown, Check, Clock, UserMinus, UserPlus } from 'lucide-react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
@@ -45,7 +45,7 @@ export function ProfilePage() {
     queryFn: ({ pageParam }) => api.watchlist(userUUID as string, pageParam),
     getNextPageParam: (last) => last.next_cursor || undefined,
     initialPageParam: undefined as string | undefined,
-    enabled: Boolean(userUUID) && activeTab === 'watchlist',
+    enabled: Boolean(userUUID),
   });
 
   const refreshSocial = () => {
@@ -91,6 +91,7 @@ export function ProfilePage() {
       page.items.map((item) => ({ title: item.title, in_watchlist: true })),
     ) || [],
   );
+  const watchlistState = watchlist.isLoading ? 'loading' : watchlist.isError ? 'error' : 'ready';
 
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -153,12 +154,12 @@ export function ProfilePage() {
         {activeTab === 'ratings' ? (
           <section aria-label="Оценки пользователя">
             <div className="sort-toolbar">
-              <label className="sort-control">
+              <span className="sort-toolbar__label">{sorting.label}</span>
+              <label className="sort-control" title="Изменить сортировку">
                 <ArrowUpDown size={16} aria-hidden />
-                <select aria-label="Сортировка оценок" value={sortKey} onChange={(event) => setParam('sort', event.target.value)}>
+                <select aria-label={`Сортировка оценок: ${sorting.label}`} value={sortKey} onChange={(event) => setParam('sort', event.target.value)}>
                   {Object.entries(sortPresets).map(([value, preset]) => <option key={value} value={value}>{preset.label}</option>)}
                 </select>
-                <ChevronDown size={15} aria-hidden />
               </label>
             </div>
             {ratings.length ? (
@@ -172,25 +173,27 @@ export function ProfilePage() {
           </section>
         ) : (
           <section aria-label="Хочу посмотреть">
-            {watchlist.isLoading ? <LoadingState label="Загружаем список" /> : null}
-            {watchlist.isError ? <ErrorState error={watchlist.error} /> : null}
-            {!watchlist.isLoading && !watchlist.isError && watchlistItems.length ? (
-              <div className="stack">
-                {watchlistItems.map((item) => (
-                  <CatalogCard
-                    key={`${item.title.media_type}-${item.title.tmdb_id}`}
-                    item={item}
-                    writable={own}
-                    pending={watchlistMutation.isPending}
-                    onToggle={(next) => watchlistMutation.mutate({ title: item.title, inWatchlist: next })}
-                  />
-                ))}
-                <InfiniteLoad hasNext={Boolean(watchlist.hasNextPage)} loading={watchlist.isFetchingNextPage} onLoad={() => watchlist.fetchNextPage()} />
-              </div>
-            ) : null}
-            {!watchlist.isLoading && !watchlist.isError && !watchlistItems.length ? (
-              <EmptyState title="Список пуст" text={own ? 'Добавляйте фильмы и сериалы на экране «Смотреть».' : 'Друг пока ничего не добавил.'} />
-            ) : null}
+            <div key={watchlistState} className="async-content-fade">
+              {watchlist.isLoading ? <LoadingState label="Загружаем список" /> : null}
+              {watchlist.isError ? <ErrorState error={watchlist.error} /> : null}
+              {!watchlist.isLoading && !watchlist.isError && watchlistItems.length ? (
+                <div className="stack">
+                  {watchlistItems.map((item) => (
+                    <CatalogCard
+                      key={`${item.title.media_type}-${item.title.tmdb_id}`}
+                      item={item}
+                      writable={own}
+                      pending={watchlistMutation.isPending}
+                      onToggle={(next) => watchlistMutation.mutate({ title: item.title, inWatchlist: next })}
+                    />
+                  ))}
+                  <InfiniteLoad hasNext={Boolean(watchlist.hasNextPage)} loading={watchlist.isFetchingNextPage} onLoad={() => watchlist.fetchNextPage()} />
+                </div>
+              ) : null}
+              {!watchlist.isLoading && !watchlist.isError && !watchlistItems.length ? (
+                <EmptyState title="Список пуст" text={own ? 'Добавляйте фильмы и сериалы на экране «Смотреть».' : 'Друг пока ничего не добавил.'} />
+              ) : null}
+            </div>
           </section>
         )}
       </div>
