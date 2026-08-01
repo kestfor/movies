@@ -1871,13 +1871,18 @@ a {
 }
 
 .sort-control > svg {
-  flex: 0 0 auto;
+  position: absolute;
+  top: 50%;
+  left: 50%;
   color: var(--tg-hint);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
 }
 
 .sort-control select {
   position: absolute;
   inset: 0;
+  z-index: 1;
   width: 100%;
   height: 100%;
   padding: 0;
@@ -1964,17 +1969,6 @@ a {
 @media (max-width: 420px) {
   .catalog-card__reason {
     margin-left: 88px;
-  }
-
-  .sort-control {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .sort-control select {
-    width: 100%;
-    max-width: none;
   }
 }
 
