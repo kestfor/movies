@@ -11,11 +11,55 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AchievementAwardSource string
+
+const (
+	AchievementAwardSourceLive      AchievementAwardSource = "live"
+	AchievementAwardSourceBackfill  AchievementAwardSource = "backfill"
+	AchievementAwardSourceReconcile AchievementAwardSource = "reconcile"
+)
+
+func (e *AchievementAwardSource) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AchievementAwardSource(s)
+	case string:
+		*e = AchievementAwardSource(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AchievementAwardSource: %T", src)
+	}
+	return nil
+}
+
+type NullAchievementAwardSource struct {
+	AchievementAwardSource AchievementAwardSource
+	Valid                  bool // Valid is true if AchievementAwardSource is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAchievementAwardSource) Scan(value interface{}) error {
+	if value == nil {
+		ns.AchievementAwardSource, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AchievementAwardSource.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAchievementAwardSource) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AchievementAwardSource), nil
+}
+
 type ActivityEventKind string
 
 const (
-	ActivityEventKindRatingCreated  ActivityEventKind = "rating_created"
-	ActivityEventKindCommentCreated ActivityEventKind = "comment_created"
+	ActivityEventKindRatingCreated       ActivityEventKind = "rating_created"
+	ActivityEventKindCommentCreated      ActivityEventKind = "comment_created"
+	ActivityEventKindAchievementUnlocked ActivityEventKind = "achievement_unlocked"
 )
 
 func (e *ActivityEventKind) Scan(src interface{}) error {
@@ -137,14 +181,33 @@ func (ns NullMediaType) Value() (driver.Value, error) {
 	return string(ns.MediaType), nil
 }
 
+type AchievementBackfillRun struct {
+	ID                 int64
+	CatalogFingerprint string
+	StartedAt          pgtype.Timestamptz
+	CompletedAt        pgtype.Timestamptz
+	LastUserID         pgtype.Int8
+	Status             string
+	ProcessedUsers     int64
+	AwardedCount       int64
+	Error              pgtype.Text
+}
+
+type AchievementCatalogState struct {
+	AchievementCode       string
+	DefinitionFingerprint string
+	IntroducedAt          pgtype.Timestamptz
+}
+
 type ActivityEvent struct {
-	ID        int64
-	ActorID   int64
-	TitleID   int64
-	Kind      ActivityEventKind
-	RatingID  pgtype.Int8
-	CommentID pgtype.Int8
-	CreatedAt pgtype.Timestamptz
+	ID            int64
+	ActorID       int64
+	TitleID       pgtype.Int8
+	Kind          ActivityEventKind
+	RatingID      pgtype.Int8
+	CommentID     pgtype.Int8
+	CreatedAt     pgtype.Timestamptz
+	AchievementID pgtype.UUID
 }
 
 type BackupSetting struct {
@@ -223,6 +286,25 @@ type User struct {
 	PhotoUrl  pgtype.Text
 	CreatedAt pgtype.Timestamptz
 	Uuid      pgtype.UUID
+}
+
+type UserAchievement struct {
+	ID              pgtype.UUID
+	UserID          int64
+	AchievementCode string
+	Xp              int32
+	EarnedAt        pgtype.Timestamptz
+	AwardedAt       pgtype.Timestamptz
+	Source          AchievementAwardSource
+	SeenAt          pgtype.Timestamptz
+}
+
+type UserAchievementMetric struct {
+	UserID     int64
+	MetricCode string
+	Value      int64
+	ReachedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
 }
 
 type WatchlistItem struct {

@@ -31,6 +31,10 @@ type Provider interface {
 	Get(ctx context.Context, mediaType domain.MediaType, tmdbID int64) (domain.Title, error)
 }
 
+type AchievementObserver interface {
+	ObserveCircle(ctx context.Context, userID int64)
+}
+
 type Repository interface {
 	GetUserByUUID(ctx context.Context, uuid string) (domain.User, bool, error)
 	GetUserRelationship(ctx context.Context, viewerID, userID int64) (string, error)
@@ -66,12 +70,17 @@ type UpsertRatingParams struct {
 }
 
 type Service struct {
-	repo     Repository
-	provider Provider
+	repo         Repository
+	provider     Provider
+	achievements AchievementObserver
 }
 
 func NewService(repo Repository, provider Provider) *Service {
 	return &Service{repo: repo, provider: provider}
+}
+
+func (s *Service) SetAchievementObserver(observer AchievementObserver) {
+	s.achievements = observer
 }
 
 func (s *Service) Upsert(ctx context.Context, userID int64, mediaType domain.MediaType, tmdbID int64, scores map[string]int) (domain.Rating, error) {
@@ -113,13 +122,20 @@ func (s *Service) Upsert(ctx context.Context, userID int64, mediaType domain.Med
 	}
 
 	avgTenths := int(math.Round(float64(total) / float64(len(scores)) * 10))
-	return s.repo.Upsert(ctx, UpsertRatingParams{
+	rating, err := s.repo.Upsert(ctx, UpsertRatingParams{
 		UserID:    userID,
 		Title:     title,
 		AvgTenths: avgTenths,
 		Scores:    scores,
 		Criteria:  criteria,
 	})
+	if err != nil {
+		return domain.Rating{}, err
+	}
+	if s.achievements != nil {
+		s.achievements.ObserveCircle(ctx, userID)
+	}
+	return rating, nil
 }
 
 func (s *Service) Delete(ctx context.Context, userID int64, mediaType domain.MediaType, tmdbID int64) error {

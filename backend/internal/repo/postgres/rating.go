@@ -140,7 +140,7 @@ func (r *RatingRepository) Upsert(ctx context.Context, params usecaseratings.Ups
 	if rating.Inserted {
 		eventID, err := q.CreateRatingActivityEvent(ctx, gen.CreateRatingActivityEventParams{
 			ActorID:  params.UserID,
-			TitleID:  titleID,
+			TitleID:  toNullInt8(titleID),
 			RatingID: toNullInt8(rating.ID),
 		})
 		if err != nil {

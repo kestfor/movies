@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate, useNavigationType } from 're
 import { useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { haptic, tg } from '../lib/telegram';
+import { AchievementNotifier } from './AchievementNotifier';
 import {
   clearActiveTitleTransition,
   consumePreserveScroll,
@@ -69,6 +70,7 @@ export function Shell() {
           <Outlet />
         </div>
       </main>
+      <AchievementNotifier />
       <nav className="tabbar" aria-label="Основная навигация">
         {tabs.map((tab) => {
           const Icon = tab.icon;

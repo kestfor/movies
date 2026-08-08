@@ -108,9 +108,9 @@ export type FeedPage = {
 
 export type NotificationItem = {
   event_id: number;
-  kind: 'rating_created' | 'comment_created';
+  kind: 'rating_created' | 'comment_created' | 'achievement_unlocked';
   actor: User;
-  title: Title;
+  title?: Title;
   rating?: {
     id: number;
     avg_score: number;
@@ -119,9 +119,63 @@ export type NotificationItem = {
     id: number;
     body: string;
   };
+  achievement?: {
+    award_id: string;
+    title?: string;
+    secret: boolean;
+  };
   read_at?: string;
   created_at: string;
   deep_link: string;
+};
+
+export type Achievement = {
+  award_id?: string;
+  code?: string;
+  title?: string;
+  description?: string;
+  category?: string;
+  icon?: string;
+  xp?: number;
+  secret: boolean;
+  unlocked: boolean;
+  sort_order: number;
+  earned_at?: string;
+  progress?: { value: number; target: number };
+};
+
+export type GamificationSummary = {
+  total_xp: number;
+  level: number;
+  rank_title: string;
+  current_level_xp: number;
+  next_level_xp: number;
+  unlocked_count: number;
+  total_count: number;
+  leaderboard_rank?: number;
+};
+
+export type AchievementsPage = {
+  user: User;
+  relationship: ProfileRatingsPage['relationship'];
+  summary: GamificationSummary;
+  achievements: Achievement[];
+};
+
+export type AchievementLeaderboard = {
+  items: Array<{
+    rank: number;
+    user: User;
+    total_xp: number;
+    level: number;
+    unlocked_count: number;
+  }>;
+};
+
+export type UnseenAchievements = {
+  items: Achievement[];
+  backfill_count: number;
+  backfill_award_ids?: string[];
 };
 
 export type NotificationsPage = {

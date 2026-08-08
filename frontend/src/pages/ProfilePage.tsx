@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { CatalogCard } from '../components/CatalogCard';
+import { AchievementsTab } from '../components/AchievementsTab';
 import { InfiniteLoad } from '../components/InfiniteLoad';
 import { Avatar, TitleRow } from '../components/TitleBits';
 import { Button, EmptyState, ErrorState, LoadingState, PageHeader, ScorePill } from '../components/Ui';
@@ -27,7 +28,8 @@ export function ProfilePage() {
   const watchlistMutation = useWatchlistMutation();
   const me = useQuery({ queryKey: ['me'], queryFn: api.me });
   const userUUID = id === 'me' ? me.data?.uuid : id;
-  const activeTab = searchParams.get('tab') === 'watchlist' ? 'watchlist' : 'ratings';
+  const tabParam = searchParams.get('tab');
+  const activeTab = tabParam === 'watchlist' || tabParam === 'achievements' ? tabParam : 'ratings';
   const requestedSort = searchParams.get('sort') as SortPreset | null;
   const sortKey: SortPreset = requestedSort && requestedSort in sortPresets ? requestedSort : 'newest';
   const sorting = sortPresets[sortKey];
@@ -148,6 +150,9 @@ export function ProfilePage() {
         <button className={activeTab === 'watchlist' ? 'is-active' : ''} role="tab" aria-selected={activeTab === 'watchlist'} onClick={() => setParam('tab', 'watchlist')}>
           Хочу посмотреть
         </button>
+        <button className={activeTab === 'achievements' ? 'is-active' : ''} role="tab" aria-selected={activeTab === 'achievements'} onClick={() => setParam('tab', 'achievements')}>
+          Ачивки
+        </button>
       </div>
 
       <div key={activeTab} className="tab-panel-transition">
@@ -171,7 +176,7 @@ export function ProfilePage() {
               <EmptyState title="Оценок нет" text={own ? 'Поставьте первую оценку на экране «Смотреть».' : 'Профиль пуст или закрыт для не-друзей.'} />
             )}
           </section>
-        ) : (
+        ) : activeTab === 'watchlist' ? (
           <section aria-label="Хочу посмотреть">
             <div key={watchlistState} className="async-content-fade">
               {watchlist.isLoading ? <LoadingState label="Загружаем список" /> : null}
@@ -195,7 +200,9 @@ export function ProfilePage() {
               ) : null}
             </div>
           </section>
-        )}
+        ) : userUUID ? (
+          <AchievementsTab userUUID={userUUID} own={own} highlighted={searchParams.get('achievement')} />
+        ) : null}
       </div>
     </>
   );

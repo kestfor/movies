@@ -1,6 +1,8 @@
 import { getInitData } from '../lib/telegram';
 import type {
   ApiErrorBody,
+  AchievementLeaderboard,
+  AchievementsPage,
   Comment,
   Criterion,
   CatalogPage,
@@ -14,6 +16,7 @@ import type {
   TitleCard,
   User,
   UserSearchResult,
+  UnseenAchievements,
   WatchlistPage,
 } from '../types/api';
 
@@ -132,4 +135,12 @@ export const api = {
     request<CatalogPage>(`/discover${qs({ type, cursor, limit })}`),
   recommendations: (cursor?: string, limit = 20) =>
     request<CatalogPage>(`/recommendations${qs({ cursor, limit })}`),
+  achievements: (userUUID: string) => request<AchievementsPage>(`/users/${userUUID}/achievements`),
+  achievementLeaderboard: () => request<AchievementLeaderboard>('/achievements/leaderboard'),
+  unseenAchievements: () => request<UnseenAchievements>('/achievements/unseen'),
+  markAchievementsSeen: (awardIDs: string[]) =>
+    request<void>('/achievements/seen', {
+      method: 'POST',
+      body: JSON.stringify({ award_ids: awardIDs }),
+    }),
 };

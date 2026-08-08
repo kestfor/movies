@@ -33,7 +33,7 @@ RETURNING id
 
 type CreateCommentActivityEventParams struct {
 	ActorID   int64
-	TitleID   int64
+	TitleID   pgtype.Int8
 	CommentID pgtype.Int8
 }
 
@@ -52,7 +52,7 @@ RETURNING id
 
 type CreateRatingActivityEventParams struct {
 	ActorID  int64
-	TitleID  int64
+	TitleID  pgtype.Int8
 	RatingID pgtype.Int8
 }
 
@@ -100,25 +100,28 @@ SELECT
     actor.first_name AS actor_first_name,
     actor.photo_url AS actor_photo_url,
     actor.created_at AS actor_created_at,
-    t.id AS title_id,
-    t.tmdb_id,
-    t.media_type,
-    t.title,
+    COALESCE(t.id, 0)::bigint AS title_id,
+    COALESCE(t.tmdb_id, 0)::bigint AS tmdb_id,
+    COALESCE(t.media_type, 'movie'::media_type) AS media_type,
+    COALESCE(t.title, '')::text AS title,
     t.original_title,
     t.poster_path,
     t.release_year,
-    t.genres,
+    COALESCE(t.genres, '[]'::jsonb) AS genres,
     t.overview,
     r.id AS rating_id,
     r.avg_score AS rating_avg_score,
     c.id AS comment_id,
-    c.body AS comment_body
+    c.body AS comment_body,
+    COALESCE(ua.id::text, '')::text AS achievement_award_id,
+    COALESCE(ua.achievement_code, '')::text AS achievement_code
 FROM notification_deliveries nd
 JOIN activity_events ae ON ae.id = nd.event_id
 JOIN users actor ON actor.id = ae.actor_id
-JOIN titles t ON t.id = ae.title_id
+LEFT JOIN titles t ON t.id = ae.title_id
 LEFT JOIN ratings r ON r.id = ae.rating_id
 LEFT JOIN comments c ON c.id = ae.comment_id
+LEFT JOIN user_achievements ua ON ua.id = ae.achievement_id
 WHERE nd.user_id = $1
   AND (
     $2::timestamptz IS NULL
@@ -136,30 +139,32 @@ type ListNotificationsParams struct {
 }
 
 type ListNotificationsRow struct {
-	EventID        int64
-	Kind           ActivityEventKind
-	CreatedAt      pgtype.Timestamptz
-	ReadAt         pgtype.Timestamptz
-	ActorID        int64
-	ActorUuid      pgtype.UUID
-	ActorTgID      int64
-	ActorUsername  pgtype.Text
-	ActorFirstName string
-	ActorPhotoUrl  pgtype.Text
-	ActorCreatedAt pgtype.Timestamptz
-	TitleID        int64
-	TmdbID         int64
-	MediaType      MediaType
-	Title          string
-	OriginalTitle  pgtype.Text
-	PosterPath     pgtype.Text
-	ReleaseYear    pgtype.Int4
-	Genres         []byte
-	Overview       pgtype.Text
-	RatingID       pgtype.Int8
-	RatingAvgScore pgtype.Numeric
-	CommentID      pgtype.Int8
-	CommentBody    pgtype.Text
+	EventID            int64
+	Kind               ActivityEventKind
+	CreatedAt          pgtype.Timestamptz
+	ReadAt             pgtype.Timestamptz
+	ActorID            int64
+	ActorUuid          pgtype.UUID
+	ActorTgID          int64
+	ActorUsername      pgtype.Text
+	ActorFirstName     string
+	ActorPhotoUrl      pgtype.Text
+	ActorCreatedAt     pgtype.Timestamptz
+	TitleID            int64
+	TmdbID             int64
+	MediaType          MediaType
+	Title              string
+	OriginalTitle      pgtype.Text
+	PosterPath         pgtype.Text
+	ReleaseYear        pgtype.Int4
+	Genres             []byte
+	Overview           pgtype.Text
+	RatingID           pgtype.Int8
+	RatingAvgScore     pgtype.Numeric
+	CommentID          pgtype.Int8
+	CommentBody        pgtype.Text
+	AchievementAwardID string
+	AchievementCode    string
 }
 
 func (q *Queries) ListNotifications(ctx context.Context, arg ListNotificationsParams) ([]ListNotificationsRow, error) {
@@ -201,6 +206,8 @@ func (q *Queries) ListNotifications(ctx context.Context, arg ListNotificationsPa
 			&i.RatingAvgScore,
 			&i.CommentID,
 			&i.CommentBody,
+			&i.AchievementAwardID,
+			&i.AchievementCode,
 		); err != nil {
 			return nil, err
 		}

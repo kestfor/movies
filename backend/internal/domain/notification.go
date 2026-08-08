@@ -5,8 +5,9 @@ import "time"
 type ActivityEventKind string
 
 const (
-	ActivityEventKindRatingCreated  ActivityEventKind = "rating_created"
-	ActivityEventKindCommentCreated ActivityEventKind = "comment_created"
+	ActivityEventKindRatingCreated       ActivityEventKind = "rating_created"
+	ActivityEventKindCommentCreated      ActivityEventKind = "comment_created"
+	ActivityEventKindAchievementUnlocked ActivityEventKind = "achievement_unlocked"
 )
 
 type NotificationComment struct {
@@ -20,15 +21,16 @@ type NotificationRating struct {
 }
 
 type Notification struct {
-	EventID   int64                `json:"event_id"`
-	Kind      ActivityEventKind    `json:"kind"`
-	Actor     User                 `json:"actor"`
-	Title     Title                `json:"title"`
-	Rating    *NotificationRating  `json:"rating,omitempty"`
-	Comment   *NotificationComment `json:"comment,omitempty"`
-	ReadAt    *time.Time           `json:"read_at,omitempty"`
-	CreatedAt time.Time            `json:"created_at"`
-	DeepLink  string               `json:"deep_link"`
+	EventID     int64                    `json:"event_id"`
+	Kind        ActivityEventKind        `json:"kind"`
+	Actor       User                     `json:"actor"`
+	Title       *Title                   `json:"title,omitempty"`
+	Rating      *NotificationRating      `json:"rating,omitempty"`
+	Comment     *NotificationComment     `json:"comment,omitempty"`
+	Achievement *NotificationAchievement `json:"achievement,omitempty"`
+	ReadAt      *time.Time               `json:"read_at,omitempty"`
+	CreatedAt   time.Time                `json:"created_at"`
+	DeepLink    string                   `json:"deep_link"`
 }
 
 type NotificationsPage struct {

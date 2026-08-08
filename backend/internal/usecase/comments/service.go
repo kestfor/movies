@@ -19,6 +19,10 @@ type Provider interface {
 	Get(ctx context.Context, mediaType domain.MediaType, tmdbID int64) (domain.Title, error)
 }
 
+type AchievementObserver interface {
+	ObserveCircle(ctx context.Context, userID int64)
+}
+
 type Repository interface {
 	GetTitleID(ctx context.Context, mediaType domain.MediaType, tmdbID int64) (int64, bool, error)
 	Get(ctx context.Context, id int64) (domain.Comment, bool, error)
@@ -36,12 +40,17 @@ type CreateCommentParams struct {
 }
 
 type Service struct {
-	repo     Repository
-	provider Provider
+	repo         Repository
+	provider     Provider
+	achievements AchievementObserver
 }
 
 func NewService(repo Repository, provider Provider) *Service {
 	return &Service{repo: repo, provider: provider}
+}
+
+func (s *Service) SetAchievementObserver(observer AchievementObserver) {
+	s.achievements = observer
 }
 
 func (s *Service) List(ctx context.Context, mediaType domain.MediaType, tmdbID int64) ([]domain.Comment, error) {
@@ -101,12 +110,19 @@ func (s *Service) Create(ctx context.Context, userID int64, mediaType domain.Med
 		}
 	}
 
-	return s.repo.Create(ctx, CreateCommentParams{
+	comment, err := s.repo.Create(ctx, CreateCommentParams{
 		UserID:   userID,
 		Title:    title,
 		ParentID: parentID,
 		Body:     body,
 	})
+	if err != nil {
+		return domain.Comment{}, err
+	}
+	if s.achievements != nil {
+		s.achievements.ObserveCircle(ctx, userID)
+	}
+	return comment, nil
 }
 
 func (s *Service) Update(ctx context.Context, userID, commentID int64, body string) (domain.Comment, error) {

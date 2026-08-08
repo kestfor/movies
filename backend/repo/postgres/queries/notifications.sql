@@ -34,25 +34,28 @@ SELECT
     actor.first_name AS actor_first_name,
     actor.photo_url AS actor_photo_url,
     actor.created_at AS actor_created_at,
-    t.id AS title_id,
-    t.tmdb_id,
-    t.media_type,
-    t.title,
+    COALESCE(t.id, 0)::bigint AS title_id,
+    COALESCE(t.tmdb_id, 0)::bigint AS tmdb_id,
+    COALESCE(t.media_type, 'movie'::media_type) AS media_type,
+    COALESCE(t.title, '')::text AS title,
     t.original_title,
     t.poster_path,
     t.release_year,
-    t.genres,
+    COALESCE(t.genres, '[]'::jsonb) AS genres,
     t.overview,
     r.id AS rating_id,
     r.avg_score AS rating_avg_score,
     c.id AS comment_id,
-    c.body AS comment_body
+    c.body AS comment_body,
+    COALESCE(ua.id::text, '')::text AS achievement_award_id,
+    COALESCE(ua.achievement_code, '')::text AS achievement_code
 FROM notification_deliveries nd
 JOIN activity_events ae ON ae.id = nd.event_id
 JOIN users actor ON actor.id = ae.actor_id
-JOIN titles t ON t.id = ae.title_id
+LEFT JOIN titles t ON t.id = ae.title_id
 LEFT JOIN ratings r ON r.id = ae.rating_id
 LEFT JOIN comments c ON c.id = ae.comment_id
+LEFT JOIN user_achievements ua ON ua.id = ae.achievement_id
 WHERE nd.user_id = $1
   AND (
     $2::timestamptz IS NULL

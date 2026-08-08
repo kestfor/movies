@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"movies/backend/internal/domain"
+	"movies/backend/internal/usecase/achievements"
 	"movies/backend/internal/usecase/auth"
 	"movies/backend/internal/usecase/notifications"
 
@@ -84,7 +85,14 @@ type NotificationManager interface {
 	MarkAllRead(ctx context.Context, userID int64) error
 }
 
-func NewRouter(authSvc Authenticator, users UserGetter, titles TitleSearcher, criteria CriteriaLister, ratings RatingManager, watchlist WatchlistManager, comments CommentManager, friends FriendManager, feed FeedLister, catalog CatalogManager, notificationManager NotificationManager) *gin.Engine {
+type AchievementManager interface {
+	GetByUUID(ctx context.Context, viewerID int64, uuid string) (domain.AchievementsPage, error)
+	Leaderboard(ctx context.Context, userID int64) (domain.Leaderboard, error)
+	Unseen(ctx context.Context, userID int64) (domain.UnseenAchievements, error)
+	MarkSeen(ctx context.Context, userID int64, awardIDs []string) error
+}
+
+func NewRouter(authSvc Authenticator, users UserGetter, titles TitleSearcher, criteria CriteriaLister, ratings RatingManager, watchlist WatchlistManager, comments CommentManager, friends FriendManager, feed FeedLister, catalog CatalogManager, notificationManager NotificationManager, achievementManagers ...AchievementManager) *gin.Engine {
 	router := gin.New()
 	_ = router.SetTrustedProxies(nil)
 	router.Use(gin.Logger(), requestErrorLogger(slog.Default()), gin.Recovery())
@@ -118,8 +126,29 @@ func NewRouter(authSvc Authenticator, users UserGetter, titles TitleSearcher, cr
 	router.GET("/notifications/unread-count", authMiddleware(authSvc), unreadNotificationsCount(notificationManager))
 	router.POST("/notifications/:event_id/read", authMiddleware(authSvc), markNotificationRead(notificationManager))
 	router.POST("/notifications/read-all", authMiddleware(authSvc), markAllNotificationsRead(notificationManager))
+	if len(achievementManagers) > 0 && achievementManagers[0] != nil {
+		achievementManager := achievementManagers[0]
+		router.GET("/users/:id/achievements", authMiddleware(authSvc), listUserAchievements(achievementManager))
+		router.GET("/achievements/leaderboard", authMiddleware(authSvc), achievementsLeaderboard(achievementManager))
+		router.GET("/achievements/unseen", authMiddleware(authSvc), unseenAchievements(achievementManager))
+		router.POST("/achievements/seen", authMiddleware(authSvc), markAchievementsSeen(achievementManager))
+	}
 
 	return router
+}
+
+func achievementError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, achievements.ErrValidation):
+		c.JSON(http.StatusUnprocessableEntity, errorResponse("validation_failed", "invalid request"))
+	case errors.Is(err, achievements.ErrNotFound):
+		c.JSON(http.StatusNotFound, errorResponse("not_found", "user not found"))
+	case errors.Is(err, achievements.ErrForbidden):
+		c.JSON(http.StatusForbidden, errorResponse("forbidden", "achievements are visible to friends only"))
+	default:
+		_ = c.Error(err)
+		c.JSON(http.StatusInternalServerError, errorResponse("internal", "internal error"))
+	}
 }
 
 func notificationError(c *gin.Context, err error) {

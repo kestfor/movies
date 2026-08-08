@@ -78,7 +78,7 @@ func (r *CommentRepository) Create(ctx context.Context, params usecasecomments.C
 
 	eventID, err := q.CreateCommentActivityEvent(ctx, gen.CreateCommentActivityEventParams{
 		ActorID:   params.UserID,
-		TitleID:   titleID,
+		TitleID:   toNullInt8(titleID),
 		CommentID: toNullInt8(comment.ID),
 	})
 	if err != nil {

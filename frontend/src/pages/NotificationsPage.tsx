@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCheck, MessageCircle, Star } from 'lucide-react';
+import { CheckCheck, MessageCircle, Star, Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { Avatar, formatRatingDate } from '../components/TitleBits';
@@ -72,7 +72,7 @@ export function NotificationsPage() {
         }
       />
       {!items.length ? (
-        <EmptyState title="Пока тихо" text="Когда друзья поставят оценку или напишут комментарий, события появятся здесь." />
+        <EmptyState title="Пока тихо" text="Оценки, комментарии и достижения друзей появятся здесь." />
       ) : (
         <div className="stack">
           {items.map((item) => (
@@ -111,7 +111,7 @@ function NotificationCard({
   busy?: boolean;
   onOpen: () => void;
 }) {
-  const Icon = item.kind === 'comment_created' ? MessageCircle : Star;
+  const Icon = item.kind === 'comment_created' ? MessageCircle : item.kind === 'achievement_unlocked' ? Trophy : Star;
   return (
     <button
       className={`notification-card ${item.read_at ? '' : 'notification-card--unread'}`}
@@ -133,7 +133,11 @@ function NotificationCard({
           </time>
         </span>
         <span className="notification-card__text">
-          {item.kind === 'comment_created' ? 'оставил(а) комментарий к' : 'поставил(а) оценку'} <b>{item.title.title}</b>
+          {item.kind === 'achievement_unlocked' ? (
+            item.achievement?.secret ? 'получил(а) секретную ачивку' : <>получил(а) ачивку <b>{item.achievement?.title}</b></>
+          ) : (
+            <>{item.kind === 'comment_created' ? 'оставил(а) комментарий к' : 'поставил(а) оценку'} <b>{item.title?.title}</b></>
+          )}
         </span>
         {item.comment ? <span className="notification-card__preview">{item.comment.body}</span> : null}
       </span>

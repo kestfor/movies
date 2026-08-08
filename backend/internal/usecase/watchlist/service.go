@@ -25,6 +25,10 @@ type Provider interface {
 	Get(ctx context.Context, mediaType domain.MediaType, tmdbID int64) (domain.Title, error)
 }
 
+type AchievementObserver interface {
+	ObserveCircle(ctx context.Context, userID int64)
+}
+
 type Cursor struct {
 	AddedAt time.Time
 	TitleID int64
@@ -43,12 +47,17 @@ type Repository interface {
 }
 
 type Service struct {
-	repo     Repository
-	provider Provider
+	repo         Repository
+	provider     Provider
+	achievements AchievementObserver
 }
 
 func NewService(repo Repository, provider Provider) *Service {
 	return &Service{repo: repo, provider: provider}
+}
+
+func (s *Service) SetAchievementObserver(observer AchievementObserver) {
+	s.achievements = observer
 }
 
 func (s *Service) Add(ctx context.Context, userID int64, mediaType domain.MediaType, tmdbID int64) error {
@@ -72,6 +81,9 @@ func (s *Service) Add(ctx context.Context, userID int64, mediaType domain.MediaT
 	}
 	if !allowed {
 		return ErrConflict
+	}
+	if s.achievements != nil {
+		s.achievements.ObserveCircle(ctx, userID)
 	}
 	return nil
 }

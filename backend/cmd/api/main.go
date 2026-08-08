@@ -11,6 +11,7 @@ import (
 	postgresrepo "movies/backend/internal/repo/postgres"
 	gen "movies/backend/internal/repo/postgres/gen"
 	httptransport "movies/backend/internal/transport/http"
+	usecaseachievements "movies/backend/internal/usecase/achievements"
 	usecaseauth "movies/backend/internal/usecase/auth"
 	usecasecatalog "movies/backend/internal/usecase/catalog"
 	usecasecomments "movies/backend/internal/usecase/comments"
@@ -58,8 +59,18 @@ func main() {
 	feedSvc := usecasefeed.NewService(feedRepo)
 	notificationRepo := postgresrepo.NewNotificationRepository(queries)
 	notificationSvc := usecasenotifications.NewService(notificationRepo)
+	achievementRepo := postgresrepo.NewAchievementRepository(pool)
+	achievementSvc, err := usecaseachievements.NewService(achievementRepo, logger)
+	if err != nil {
+		logger.Error("initialize achievements", "error", err)
+		os.Exit(1)
+	}
+	ratingSvc.SetAchievementObserver(achievementSvc)
+	watchlistSvc.SetAchievementObserver(achievementSvc)
+	commentSvc.SetAchievementObserver(achievementSvc)
+	friendSvc.SetAchievementObserver(achievementSvc)
 
-	router := httptransport.NewRouter(authSvc, userRepo, titleSvc, criteriaSvc, ratingSvc, watchlistSvc, commentSvc, friendSvc, feedSvc, catalogSvc, notificationSvc)
+	router := httptransport.NewRouter(authSvc, userRepo, titleSvc, criteriaSvc, ratingSvc, watchlistSvc, commentSvc, friendSvc, feedSvc, catalogSvc, notificationSvc, achievementSvc)
 	logger.Info("starting api", "addr", cfg.HTTPAddr)
 	if err := router.Run(cfg.HTTPAddr); err != nil {
 		logger.Error("api stopped", "error", err)

@@ -25,12 +25,21 @@ type Repository interface {
 	DeleteFriend(ctx context.Context, userID, otherUserID int64) (bool, error)
 }
 
+type AchievementObserver interface {
+	ObserveCircle(ctx context.Context, userID int64)
+}
+
 type Service struct {
-	repo Repository
+	repo         Repository
+	achievements AchievementObserver
 }
 
 func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
+}
+
+func (s *Service) SetAchievementObserver(observer AchievementObserver) {
+	s.achievements = observer
 }
 
 func (s *Service) ListFriends(ctx context.Context, userID int64) ([]domain.User, error) {
@@ -70,6 +79,9 @@ func (s *Service) CreateRequest(ctx context.Context, requesterID, addresseeID in
 		if !ok {
 			return domain.Friendship{}, ErrConflict
 		}
+		if s.achievements != nil {
+			s.achievements.ObserveCircle(ctx, requesterID)
+		}
 		return accepted, nil
 	}
 
@@ -101,6 +113,9 @@ func (s *Service) AcceptRequest(ctx context.Context, currentUserID, requesterID 
 	}
 	if !ok {
 		return domain.Friendship{}, ErrNotFound
+	}
+	if s.achievements != nil {
+		s.achievements.ObserveCircle(ctx, currentUserID)
 	}
 	return friendship, nil
 }

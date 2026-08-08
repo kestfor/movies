@@ -9,6 +9,7 @@ FROM deps AS build
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/api ./cmd/api
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/backupbot ./cmd/backupbot
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/achievements-backfill ./cmd/achievements-backfill
 RUN CGO_ENABLED=0 GOOS=linux GOBIN=/out go install github.com/jackc/tern/v2@v2.4.1
 
 FROM postgres:17-alpine AS runtime
@@ -17,6 +18,7 @@ RUN adduser -D -H -u 10001 appuser
 WORKDIR /app
 COPY --from=build /out/api /app/api
 COPY --from=build /out/backupbot /app/backupbot
+COPY --from=build /out/achievements-backfill /app/achievements-backfill
 COPY --from=build /out/tern /app/tern
 COPY migrations /app/migrations
 

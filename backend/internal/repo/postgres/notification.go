@@ -6,6 +6,7 @@ import (
 
 	"movies/backend/internal/domain"
 	gen "movies/backend/internal/repo/postgres/gen"
+	usecaseachievements "movies/backend/internal/usecase/achievements"
 	usecasenotifications "movies/backend/internal/usecase/notifications"
 )
 
@@ -29,6 +30,10 @@ func (r *NotificationRepository) List(ctx context.Context, userID int64, cursor 
 	}
 
 	items := make([]domain.Notification, 0, len(rows))
+	definitions := make(map[string]usecaseachievements.Definition, len(usecaseachievements.Definitions()))
+	for _, definition := range usecaseachievements.Definitions() {
+		definitions[definition.Code] = definition
+	}
 	for _, row := range rows {
 		item := domain.Notification{
 			EventID: row.EventID,
@@ -42,7 +47,10 @@ func (r *NotificationRepository) List(ctx context.Context, userID int64, cursor 
 				PhotoURL:  textToString(row.ActorPhotoUrl),
 				CreatedAt: row.ActorCreatedAt.Time,
 			},
-			Title: domain.Title{
+			CreatedAt: row.CreatedAt.Time,
+		}
+		if row.TitleID != 0 {
+			item.Title = &domain.Title{
 				ID:            row.TitleID,
 				TmdbID:        row.TmdbID,
 				MediaType:     domain.MediaType(row.MediaType),
@@ -52,8 +60,7 @@ func (r *NotificationRepository) List(ctx context.Context, userID int64, cursor 
 				PosterPath:    textToString(row.PosterPath),
 				Genres:        unmarshalGenres(row.Genres),
 				Overview:      textToString(row.Overview),
-			},
-			CreatedAt: row.CreatedAt.Time,
+			}
 		}
 		if row.ReadAt.Valid {
 			readAt := row.ReadAt.Time
@@ -69,6 +76,16 @@ func (r *NotificationRepository) List(ctx context.Context, userID int64, cursor 
 			item.Comment = &domain.NotificationComment{
 				ID:   row.CommentID.Int64,
 				Body: textToString(row.CommentBody),
+			}
+		}
+		if row.AchievementAwardID != "" {
+			definition, ok := definitions[row.AchievementCode]
+			item.Achievement = &domain.NotificationAchievement{
+				AwardID: row.AchievementAwardID,
+				Secret:  ok && definition.Secret,
+			}
+			if ok && !definition.Secret {
+				item.Achievement.Title = definition.Title
 			}
 		}
 		item.DeepLink = notificationDeepLink(item)
@@ -97,6 +114,12 @@ func (r *NotificationRepository) MarkAllRead(ctx context.Context, userID int64) 
 }
 
 func notificationDeepLink(item domain.Notification) string {
+	if item.Achievement != nil {
+		return fmt.Sprintf("/profile/%s?tab=achievements&achievement=%s", item.Actor.UUID, item.Achievement.AwardID)
+	}
+	if item.Title == nil {
+		return "/notifications"
+	}
 	link := fmt.Sprintf("/title/%s/%d", item.Title.MediaType, item.Title.TmdbID)
 	if item.Comment != nil {
 		link = fmt.Sprintf("%s?comment_id=%d", link, item.Comment.ID)
