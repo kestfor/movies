@@ -74,8 +74,12 @@ type fakeRatingManager struct {
 }
 
 type fakeWatchlistManager struct {
-	page domain.WatchlistPage
-	err  error
+	page             domain.WatchlistPage
+	matchesPage      domain.WatchlistMatchesPage
+	matchFriendUUIDs *[]string
+	matchCursor      *string
+	matchLimit       *int
+	err              error
 }
 
 func (f fakeWatchlistManager) Add(context.Context, int64, domain.MediaType, int64) error {
@@ -86,6 +90,18 @@ func (f fakeWatchlistManager) Remove(context.Context, int64, domain.MediaType, i
 }
 func (f fakeWatchlistManager) ListByUUID(context.Context, int64, string, string, int) (domain.WatchlistPage, error) {
 	return f.page, f.err
+}
+func (f fakeWatchlistManager) ListMatches(_ context.Context, _ int64, friendUUIDs []string, cursor string, limit int) (domain.WatchlistMatchesPage, error) {
+	if f.matchFriendUUIDs != nil {
+		*f.matchFriendUUIDs = append([]string(nil), friendUUIDs...)
+	}
+	if f.matchCursor != nil {
+		*f.matchCursor = cursor
+	}
+	if f.matchLimit != nil {
+		*f.matchLimit = limit
+	}
+	return f.matchesPage, f.err
 }
 func (f fakeWatchlistManager) IsInWatchlist(context.Context, int64, domain.MediaType, int64) (bool, error) {
 	return false, f.err
@@ -425,5 +441,51 @@ func TestWatchlistRoutesAreIdempotent(t *testing.T) {
 		if rec.Code != test.want {
 			t.Fatalf("%s status=%d want=%d body=%s", test.method, rec.Code, test.want, rec.Body.String())
 		}
+	}
+}
+
+func TestWatchlistMatchesRoutePassesFiltersAndReturnsPage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var friendUUIDs []string
+	var cursor string
+	var limit int
+	watchlist := fakeWatchlistManager{
+		matchesPage: domain.WatchlistMatchesPage{Items: []domain.WatchlistMatchItem{{
+			Title:        domain.Title{TmdbID: 603, MediaType: domain.MediaTypeMovie, Title: "Матрица"},
+			Users:        []domain.User{{UUID: "me", FirstName: "Илья"}, {UUID: "friend", FirstName: "Аня"}},
+			MatchesCount: 2,
+		}}},
+		matchFriendUUIDs: &friendUUIDs, matchCursor: &cursor, matchLimit: &limit,
+	}
+	router := NewRouter(
+		fakeAuthenticator{user: domain.User{ID: 1}}, fakeUserGetter{}, fakeTitleSearcher{}, fakeCriteriaLister{},
+		fakeRatingManager{}, watchlist, fakeCommentManager{}, fakeFriendManager{}, fakeFeedLister{},
+		fakeCatalogManager{}, fakeNotificationManager{},
+	)
+	req := httptest.NewRequest(http.MethodGet, "/watchlist/matches?friend_id=b&friend_id=a&cursor=opaque&limit=7", nil)
+	req.Header.Set("Authorization", "tma init-data")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"matches_count":2`) || !strings.Contains(rec.Body.String(), `"users":[`) {
+		t.Fatalf("unexpected response status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	if len(friendUUIDs) != 2 || friendUUIDs[0] != "b" || friendUUIDs[1] != "a" || cursor != "opaque" || limit != 7 {
+		t.Fatalf("handler args friends=%v cursor=%q limit=%d", friendUUIDs, cursor, limit)
+	}
+}
+
+func TestWatchlistMatchesRouteRejectsInvalidLimit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := NewRouter(
+		fakeAuthenticator{user: domain.User{ID: 1}}, fakeUserGetter{}, fakeTitleSearcher{}, fakeCriteriaLister{},
+		fakeRatingManager{}, fakeWatchlistManager{}, fakeCommentManager{}, fakeFriendManager{}, fakeFeedLister{},
+		fakeCatalogManager{}, fakeNotificationManager{},
+	)
+	req := httptest.NewRequest(http.MethodGet, "/watchlist/matches?limit=zero", nil)
+	req.Header.Set("Authorization", "tma init-data")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnprocessableEntity || !strings.Contains(rec.Body.String(), `"validation_failed"`) {
+		t.Fatalf("unexpected response status=%d body=%s", rec.Code, rec.Body.String())
 	}
 }

@@ -5,7 +5,7 @@ import { haptic } from '../lib/telegram';
 import type { Title } from '../types/api';
 import { updateWatchlistData } from './watchlistCache';
 
-const watchedFamilies = ['title', 'search', 'discover', 'recommendations', 'profileWatchlist'];
+const watchedFamilies = ['title', 'search', 'discover', 'recommendations', 'profileWatchlist', 'watchlistMatches'];
 
 type WatchlistVariables = { title: Title; inWatchlist: boolean };
 type WatchlistContext = { snapshots: Array<[readonly unknown[], unknown]> };

@@ -148,6 +148,18 @@ type WatchlistPage struct {
 	NextCursor string          `json:"next_cursor,omitempty"`
 }
 
+type WatchlistMatchItem struct {
+	Title         Title     `json:"title"`
+	Users         []User    `json:"users"`
+	MatchesCount  int       `json:"matches_count"`
+	LatestAddedAt time.Time `json:"-"`
+}
+
+type WatchlistMatchesPage struct {
+	Items      []WatchlistMatchItem `json:"items"`
+	NextCursor string               `json:"next_cursor,omitempty"`
+}
+
 type RecommendationSeed struct {
 	RatingID  int64
 	Title     Title

@@ -478,6 +478,32 @@ Returns the owner's or an accepted friend's watchlist, newest additions first. N
 }
 ```
 
+### `GET /watchlist/matches?friend_id=&cursor=&limit=`
+
+Returns movies and series that are present in the current user's watchlist and in at least one accepted friend's watchlist. With no `friend_id`, every title shared with any accepted friend is eligible.
+
+`friend_id` is a repeatable user UUID parameter. When one or more values are supplied, a title must be present in the current user's watchlist and in every selected friend's watchlist. Duplicate UUIDs are ignored. Invalid UUIDs and users who are not accepted friends return `422 validation_failed`.
+
+Each item still lists all accepted friends who want to watch the title, not only the selected filter values. The current user is first in `users`; remaining users are ordered by name and UUID.
+
+```json
+{
+  "items": [
+    {
+      "title": { "tmdb_id": 603, "media_type": "movie", "title": "Матрица" },
+      "users": [
+        { "uuid": "...", "first_name": "Илья" },
+        { "uuid": "...", "first_name": "Аня" }
+      ],
+      "matches_count": 2
+    }
+  ],
+  "next_cursor": "opaque"
+}
+```
+
+Results are ordered by `(matches_count, latest_added_at, title_id) DESC`. The opaque keyset cursor is bound to the normalized `friend_id` selection. `limit` defaults to 20 and is capped at 50.
+
 ## Local Smoke Scripts
 
 ```bash

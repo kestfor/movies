@@ -76,6 +76,33 @@ func listUserWatchlist(watchlist WatchlistManager) gin.HandlerFunc {
 	}
 }
 
+func listWatchlistMatches(watchlist WatchlistManager) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		user, ok := currentUser(c)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, errorResponse("unauthorized", "authentication required"))
+			return
+		}
+		limit := 0
+		if raw := c.Query("limit"); raw != "" {
+			parsed, err := strconv.Atoi(raw)
+			if err != nil || parsed < 1 {
+				c.JSON(http.StatusUnprocessableEntity, errorResponse("validation_failed", "invalid limit"))
+				return
+			}
+			limit = parsed
+		}
+		page, err := watchlist.ListMatches(
+			c.Request.Context(), user.ID, c.QueryArray("friend_id"), c.Query("cursor"), limit,
+		)
+		if err != nil {
+			writeWatchlistError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, page)
+	}
+}
+
 func writeWatchlistError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, usecasewatchlist.ErrValidation):

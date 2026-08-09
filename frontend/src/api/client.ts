@@ -18,6 +18,7 @@ import type {
   UserSearchResult,
   UnseenAchievements,
   WatchlistPage,
+  WatchlistMatchesPage,
 } from '../types/api';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
@@ -64,10 +65,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
-const qs = (params: Record<string, string | number | undefined>) => {
+const qs = (params: Record<string, string | number | readonly string[] | undefined>) => {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
-    if (value !== undefined && value !== '') query.set(key, String(value));
+    if (Array.isArray(value)) {
+      value.forEach((item) => query.append(key, item));
+    } else if (value !== undefined && value !== '') {
+      query.set(key, String(value));
+    }
   });
   const raw = query.toString();
   return raw ? `?${raw}` : '';
@@ -127,6 +132,8 @@ export const api = {
   ) => request<ProfileRatingsPage>(`/users/${userUUID}/ratings${qs({ cursor, sort, order, limit })}`),
   watchlist: (userUUID: string, cursor?: string, limit = 20) =>
     request<WatchlistPage>(`/users/${userUUID}/watchlist${qs({ cursor, limit })}`),
+  watchlistMatches: (friendUUIDs: readonly string[], cursor?: string, limit = 20) =>
+    request<WatchlistMatchesPage>(`/watchlist/matches${qs({ friend_id: friendUUIDs, cursor, limit })}`),
   addToWatchlist: (type: string, id: string | number) =>
     request<{ in_watchlist: true }>(`/titles/${type}/${id}/watchlist`, { method: 'PUT' }),
   removeFromWatchlist: (type: string, id: string | number) =>

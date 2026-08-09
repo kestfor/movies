@@ -1,15 +1,18 @@
 import { Compass, Search } from 'lucide-react';
-import { useDeferredValue } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useDeferredValue, useEffect } from 'react';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { CatalogCard } from '../components/CatalogCard';
 import { InfiniteLoad } from '../components/InfiniteLoad';
 import { EmptyState, ErrorState, LoadingState, PageHeader } from '../components/Ui';
+import { FriendAvatarFilter, WatchTogetherCard } from '../components/WatchTogetherCard';
 import { useWatchlistMutation } from '../hooks/useWatchlistMutation';
-import type { CatalogItem } from '../types/api';
+import { haptic } from '../lib/telegram';
+import { availableFriendSelection, normalizeFriendSelection, sameFriendSelection } from '../lib/watchTogether';
+import type { CatalogItem, WatchlistMatchItem } from '../types/api';
 
-type ContentTab = 'discover' | 'recommendations';
+type ContentTab = 'discover' | 'recommendations' | 'together';
 type MediaFilter = 'all' | 'movie' | 'tv';
 
 export function WatchPage() {
@@ -18,9 +21,13 @@ export function WatchPage() {
   const query = searchParams.get('q') || '';
   const trimmed = useDeferredValue(query.trim());
   const searching = trimmed.length >= 2;
-  const activeTab: ContentTab = searchParams.get('tab') === 'recommendations' ? 'recommendations' : 'discover';
+  const requestedTab = searchParams.get('tab');
+  const activeTab: ContentTab = requestedTab === 'recommendations' || requestedTab === 'together' ? requestedTab : 'discover';
   const requestedType = searchParams.get('type');
   const mediaFilter: MediaFilter = requestedType === 'movie' || requestedType === 'tv' ? requestedType : 'all';
+  const rawFriendIDs = searchParams.getAll('friend_id');
+  const rawFriendIDsKey = rawFriendIDs.join('\u0000');
+  const selectedFriendIDs = normalizeFriendSelection(rawFriendIDs);
 
   const search = useInfiniteQuery({
     queryKey: ['search', trimmed],
@@ -34,15 +41,38 @@ export function WatchPage() {
     queryFn: ({ pageParam }) => api.discover(mediaFilter, pageParam),
     getNextPageParam: (last) => last.next_cursor || undefined,
     initialPageParam: undefined as string | undefined,
-    enabled: !searching,
+    enabled: !searching && activeTab === 'discover',
   });
   const recommendations = useInfiniteQuery({
     queryKey: ['recommendations'],
     queryFn: ({ pageParam }) => api.recommendations(pageParam),
     getNextPageParam: (last) => last.next_cursor || undefined,
     initialPageParam: undefined as string | undefined,
-    enabled: !searching,
+    enabled: !searching && activeTab === 'recommendations',
   });
+  const friends = useQuery({
+    queryKey: ['friends'],
+    queryFn: api.friends,
+    enabled: !searching && activeTab === 'together',
+  });
+  const matches = useInfiniteQuery({
+    queryKey: ['watchlistMatches', selectedFriendIDs],
+    queryFn: ({ pageParam }) => api.watchlistMatches(selectedFriendIDs, pageParam),
+    getNextPageParam: (last) => last.next_cursor || undefined,
+    initialPageParam: undefined as string | undefined,
+    enabled: !searching && activeTab === 'together' && Boolean(friends.data?.friends.length),
+  });
+
+  useEffect(() => {
+    if (!friends.data) return;
+    const available = new Set(friends.data.friends.map((friend) => friend.uuid));
+    const valid = availableFriendSelection(rawFriendIDs, available);
+    if (sameFriendSelection(rawFriendIDs, valid)) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('friend_id');
+    valid.forEach((uuid) => next.append('friend_id', uuid));
+    setSearchParams(next, { replace: true });
+  }, [friends.data, rawFriendIDsKey, searchParams, setSearchParams]);
 
   const setParam = (key: string, value?: string) => {
     const next = new URLSearchParams(searchParams);
@@ -51,13 +81,30 @@ export function WatchPage() {
     setSearchParams(next, { replace: true });
   };
 
-  const source = searching ? search : activeTab === 'discover' ? discover : recommendations;
-  const items = searching
+  const setFriendIDs = (friendIDs: readonly string[]) => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('friend_id');
+    normalizeFriendSelection(friendIDs).forEach((uuid) => next.append('friend_id', uuid));
+    setSearchParams(next, { replace: true });
+  };
+
+  const toggleFriend = (friendUUID: string) => {
+    haptic('light');
+    setFriendIDs(selectedFriendIDs.includes(friendUUID)
+      ? selectedFriendIDs.filter((uuid) => uuid !== friendUUID)
+      : [...selectedFriendIDs, friendUUID]);
+  };
+
+  const source = searching ? search : activeTab === 'discover' ? discover : activeTab === 'recommendations' ? recommendations : matches;
+  const items: CatalogItem[] = searching
     ? dedupe(search.data?.pages.flatMap((page) => page.results) || [])
     : activeTab === 'discover'
       ? dedupe(discover.data?.pages.flatMap((page) => page.items) || [])
-      : dedupe(recommendations.data?.pages.flatMap((page) => page.items) || []);
-  const degraded = !searching && (activeTab === 'discover'
+      : activeTab === 'recommendations'
+        ? dedupe(recommendations.data?.pages.flatMap((page) => page.items) || [])
+        : [];
+  const matchItems = dedupeMatches(matches.data?.pages.flatMap((page) => page.items) || []);
+  const degraded = !searching && activeTab !== 'together' && (activeTab === 'discover'
     ? discover.data?.pages.some((page) => page.degraded)
     : recommendations.data?.pages.some((page) => page.degraded));
   const personalized = recommendations.data?.pages[0]?.personalized;
@@ -77,12 +124,15 @@ export function WatchPage() {
       </label>
 
       {!searching ? (
-        <div className="segmented" role="tablist" aria-label="Режим просмотра">
+        <div className="segmented watch-segmented" role="tablist" aria-label="Режим просмотра">
           <button role="tab" aria-selected={activeTab === 'discover'} className={activeTab === 'discover' ? 'is-active' : ''} onClick={() => setParam('tab', 'discover')}>
             Обзор
           </button>
           <button role="tab" aria-selected={activeTab === 'recommendations'} className={activeTab === 'recommendations' ? 'is-active' : ''} onClick={() => setParam('tab', 'recommendations')}>
             Для вас
+          </button>
+          <button role="tab" aria-selected={activeTab === 'together'} className={activeTab === 'together' ? 'is-active' : ''} onClick={() => setParam('tab', 'together')}>
+            Вместе
           </button>
         </div>
       ) : null}
@@ -100,6 +150,19 @@ export function WatchPage() {
             {activeTab === 'recommendations' && personalized === false ? (
               <div className="catalog-notice"><Compass size={17} aria-hidden /> Оцените хотя бы три тайтла — подборка станет персональной.</div>
             ) : null}
+            {activeTab === 'together' && friends.isLoading ? <LoadingState label="Загружаем друзей" /> : null}
+            {activeTab === 'together' && friends.isError ? <ErrorState error={friends.error} /> : null}
+            {activeTab === 'together' && friends.data?.friends.length ? (
+              <FriendAvatarFilter
+                friends={friends.data.friends}
+                selected={selectedFriendIDs}
+                onToggle={toggleFriend}
+                onClear={() => {
+                  haptic('light');
+                  setFriendIDs([]);
+                }}
+              />
+            ) : null}
           </>
         ) : null}
 
@@ -108,7 +171,7 @@ export function WatchPage() {
           {source.isLoading ? <LoadingState label={searching ? 'Ищем' : 'Собираем подборку'} /> : null}
           {source.isError ? <ErrorState error={source.error} /> : null}
           {degraded ? <div className="catalog-notice">Часть каталога временно недоступна, показываем оставшиеся результаты.</div> : null}
-          {!source.isLoading && !source.isError && items.length ? (
+          {(searching || activeTab !== 'together') && !source.isLoading && !source.isError && items.length ? (
             <div className="stack">
               {items.map((item) => (
                 <CatalogCard
@@ -121,8 +184,23 @@ export function WatchPage() {
               <InfiniteLoad hasNext={Boolean(source.hasNextPage)} loading={source.isFetchingNextPage} onLoad={() => source.fetchNextPage()} />
             </div>
           ) : null}
-          {!source.isLoading && !source.isError && !items.length && (searching || !query.trim()) ? (
+          {!searching && activeTab === 'together' && !matches.isLoading && !matches.isError && matchItems.length ? (
+            <div className="stack">
+              {matchItems.map((item) => <WatchTogetherCard key={`${item.title.media_type}-${item.title.tmdb_id}`} item={item} />)}
+              <InfiniteLoad hasNext={Boolean(matches.hasNextPage)} loading={matches.isFetchingNextPage} onLoad={() => matches.fetchNextPage()} />
+            </div>
+          ) : null}
+          {(searching || activeTab !== 'together') && !source.isLoading && !source.isError && !items.length && (searching || !query.trim()) ? (
             <EmptyState title={searching ? 'Ничего не найдено' : 'Подборка закончилась'} text={searching ? 'Попробуйте другое название.' : 'Загляните сюда немного позже.'} />
+          ) : null}
+          {!searching && activeTab === 'together' && friends.data?.friends.length === 0 ? (
+            <EmptyState title="Добавьте друзей" text="Общие планы на просмотр появятся после принятия заявок." />
+          ) : null}
+          {!searching && activeTab === 'together' && Boolean(friends.data?.friends.length) && !matches.isLoading && !matches.isError && !matchItems.length ? (
+            <EmptyState
+              title={selectedFriendIDs.length ? 'Нет общих тайтлов' : 'Пока нет общих планов на просмотр'}
+              text={selectedFriendIDs.length ? 'Попробуйте изменить выбор друзей.' : 'Добавляйте фильмы и сериалы в «Хочу посмотреть» — совпадения появятся здесь.'}
+            />
           ) : null}
         </div>
       </div>
@@ -131,6 +209,16 @@ export function WatchPage() {
 }
 
 function dedupe(items: CatalogItem[]) {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.title.media_type}:${item.title.tmdb_id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function dedupeMatches(items: WatchlistMatchItem[]) {
   const seen = new Set<string>();
   return items.filter((item) => {
     const key = `${item.title.media_type}:${item.title.tmdb_id}`;

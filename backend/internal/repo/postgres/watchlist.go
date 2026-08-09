@@ -125,6 +125,45 @@ func (r *WatchlistRepository) Count(ctx context.Context, userID int64) (int64, e
 	return r.queries.CountWatchlistItems(ctx, userID)
 }
 
+func (r *WatchlistRepository) ResolveAcceptedFriendIDs(ctx context.Context, userID int64, friendUUIDs []string) ([]int64, error) {
+	if len(friendUUIDs) == 0 {
+		return []int64{}, nil
+	}
+	return r.queries.ListAcceptedFriendIDsByUUIDs(ctx, gen.ListAcceptedFriendIDsByUUIDsParams{
+		UserID: userID, FriendUuids: friendUUIDs,
+	})
+}
+
+func (r *WatchlistRepository) ListMatches(ctx context.Context, userID int64, friendIDs []int64, cursor usecasewatchlist.MatchesCursor, limit int) ([]domain.WatchlistMatchItem, error) {
+	rows, err := r.queries.ListWatchlistMatches(ctx, gen.ListWatchlistMatchesParams{
+		UserID: userID, FriendIds: friendIDs,
+		CursorMatchesCount: toNullInt4(cursor.MatchesCount), CursorLatestAddedAt: toNullableTimestamp(cursor.LatestAddedAt),
+		CursorTitleID: toNullInt8(cursor.TitleID), PageLimit: int32(limit),
+	})
+	if err != nil {
+		return nil, err
+	}
+	items := make([]domain.WatchlistMatchItem, 0)
+	for _, row := range rows {
+		if len(items) == 0 || items[len(items)-1].Title.ID != row.TitleID {
+			items = append(items, domain.WatchlistMatchItem{
+				Title: domain.Title{
+					ID: row.TitleID, TmdbID: row.TmdbID, MediaType: domain.MediaType(row.MediaType), Title: row.Title,
+					OriginalTitle: textToString(row.OriginalTitle), PosterPath: textToString(row.PosterPath),
+					ReleaseYear: int(row.ReleaseYear.Int32), Genres: unmarshalGenres(row.Genres), Overview: textToString(row.Overview),
+				},
+				Users: []domain.User{}, MatchesCount: int(row.MatchesCount), LatestAddedAt: row.LatestAddedAt.Time,
+			})
+		}
+		item := &items[len(items)-1]
+		item.Users = append(item.Users, toDomainUserFields(
+			row.WatcherID, row.WatcherUuid, row.WatcherTgID, row.WatcherUsername,
+			row.WatcherFirstName, row.WatcherPhotoUrl, row.WatcherCreatedAt,
+		))
+	}
+	return items, nil
+}
+
 func (r *WatchlistRepository) ListRefs(ctx context.Context, userID int64) ([]domain.TitleRef, error) {
 	rows, err := r.queries.ListWatchlistTitleRefs(ctx, userID)
 	if err != nil {

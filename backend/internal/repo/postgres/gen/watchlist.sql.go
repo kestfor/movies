@@ -128,6 +128,44 @@ func (q *Queries) IsInWatchlist(ctx context.Context, arg IsInWatchlistParams) (b
 	return exists, err
 }
 
+const listAcceptedFriendIDsByUUIDs = `-- name: ListAcceptedFriendIDsByUUIDs :many
+SELECT u.id
+FROM friendships f
+JOIN users u ON u.id = CASE
+    WHEN f.requester_id = $1 THEN f.addressee_id
+    ELSE f.requester_id
+END
+WHERE (f.requester_id = $1 OR f.addressee_id = $1)
+  AND f.status = 'accepted'
+  AND u.uuid::text = ANY($2::text[])
+ORDER BY u.id
+`
+
+type ListAcceptedFriendIDsByUUIDsParams struct {
+	UserID      int64
+	FriendUuids []string
+}
+
+func (q *Queries) ListAcceptedFriendIDsByUUIDs(ctx context.Context, arg ListAcceptedFriendIDsByUUIDsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listAcceptedFriendIDsByUUIDs, arg.UserID, arg.FriendUuids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRatedTitleRefs = `-- name: ListRatedTitleRefs :many
 SELECT t.tmdb_id, t.media_type
 FROM ratings r
@@ -318,6 +356,161 @@ func (q *Queries) ListWatchlistItems(ctx context.Context, arg ListWatchlistItems
 			&i.ReleaseYear,
 			&i.Genres,
 			&i.Overview,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listWatchlistMatches = `-- name: ListWatchlistMatches :many
+WITH accepted_friends AS (
+    SELECT CASE
+        WHEN f.requester_id = $1 THEN f.addressee_id
+        ELSE f.requester_id
+    END AS user_id
+    FROM friendships f
+    WHERE (f.requester_id = $1 OR f.addressee_id = $1)
+      AND f.status = 'accepted'
+),
+circle_users AS (
+    SELECT $1::bigint AS user_id
+    UNION ALL
+    SELECT user_id FROM accepted_friends
+),
+circle_watchers AS (
+    SELECT w.user_id, w.title_id, w.created_at
+    FROM watchlist_items w
+    JOIN circle_users cu ON cu.user_id = w.user_id
+),
+candidate_titles AS (
+    SELECT
+        own.title_id,
+        count(cw.user_id)::int AS matches_count,
+        max(cw.created_at)::timestamptz AS latest_added_at
+    FROM watchlist_items own
+    JOIN circle_watchers cw ON cw.title_id = own.title_id
+    WHERE own.user_id = $1
+    GROUP BY own.title_id
+    HAVING count(cw.user_id) >= 2
+       AND (
+           cardinality($2::bigint[]) = 0
+           OR count(*) FILTER (WHERE cw.user_id = ANY($2::bigint[])) = cardinality($2::bigint[])
+       )
+),
+paged_titles AS (
+    SELECT title_id, matches_count, latest_added_at
+    FROM candidate_titles
+    WHERE $3::int IS NULL
+       OR (matches_count, latest_added_at, title_id) < (
+           $3::int,
+           $4::timestamptz,
+           $5::bigint
+       )
+    ORDER BY matches_count DESC, latest_added_at DESC, title_id DESC
+    LIMIT $6
+)
+SELECT
+    p.matches_count,
+    p.latest_added_at,
+    t.id AS title_id,
+    t.tmdb_id,
+    t.media_type,
+    t.title,
+    t.original_title,
+    t.poster_path,
+    t.release_year,
+    t.genres,
+    t.overview,
+    u.id AS watcher_id,
+    u.uuid AS watcher_uuid,
+    u.tg_id AS watcher_tg_id,
+    u.username AS watcher_username,
+    u.first_name AS watcher_first_name,
+    u.photo_url AS watcher_photo_url,
+    u.created_at AS watcher_created_at
+FROM paged_titles p
+JOIN titles t ON t.id = p.title_id
+JOIN circle_watchers cw ON cw.title_id = p.title_id
+JOIN users u ON u.id = cw.user_id
+ORDER BY
+    p.matches_count DESC,
+    p.latest_added_at DESC,
+    p.title_id DESC,
+    CASE WHEN u.id = $1 THEN 0 ELSE 1 END,
+    lower(u.first_name),
+    u.uuid
+`
+
+type ListWatchlistMatchesParams struct {
+	UserID              int64
+	FriendIds           []int64
+	CursorMatchesCount  pgtype.Int4
+	CursorLatestAddedAt pgtype.Timestamptz
+	CursorTitleID       pgtype.Int8
+	PageLimit           int32
+}
+
+type ListWatchlistMatchesRow struct {
+	MatchesCount     int32
+	LatestAddedAt    pgtype.Timestamptz
+	TitleID          int64
+	TmdbID           int64
+	MediaType        MediaType
+	Title            string
+	OriginalTitle    pgtype.Text
+	PosterPath       pgtype.Text
+	ReleaseYear      pgtype.Int4
+	Genres           []byte
+	Overview         pgtype.Text
+	WatcherID        int64
+	WatcherUuid      pgtype.UUID
+	WatcherTgID      int64
+	WatcherUsername  pgtype.Text
+	WatcherFirstName string
+	WatcherPhotoUrl  pgtype.Text
+	WatcherCreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) ListWatchlistMatches(ctx context.Context, arg ListWatchlistMatchesParams) ([]ListWatchlistMatchesRow, error) {
+	rows, err := q.db.Query(ctx, listWatchlistMatches,
+		arg.UserID,
+		arg.FriendIds,
+		arg.CursorMatchesCount,
+		arg.CursorLatestAddedAt,
+		arg.CursorTitleID,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListWatchlistMatchesRow
+	for rows.Next() {
+		var i ListWatchlistMatchesRow
+		if err := rows.Scan(
+			&i.MatchesCount,
+			&i.LatestAddedAt,
+			&i.TitleID,
+			&i.TmdbID,
+			&i.MediaType,
+			&i.Title,
+			&i.OriginalTitle,
+			&i.PosterPath,
+			&i.ReleaseYear,
+			&i.Genres,
+			&i.Overview,
+			&i.WatcherID,
+			&i.WatcherUuid,
+			&i.WatcherTgID,
+			&i.WatcherUsername,
+			&i.WatcherFirstName,
+			&i.WatcherPhotoUrl,
+			&i.WatcherCreatedAt,
 		); err != nil {
 			return nil, err
 		}

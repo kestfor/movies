@@ -45,6 +45,7 @@ type WatchlistManager interface {
 	Add(ctx context.Context, userID int64, mediaType domain.MediaType, tmdbID int64) error
 	Remove(ctx context.Context, userID int64, mediaType domain.MediaType, tmdbID int64) error
 	ListByUUID(ctx context.Context, viewerID int64, userUUID, cursor string, limit int) (domain.WatchlistPage, error)
+	ListMatches(ctx context.Context, userID int64, friendUUIDs []string, cursor string, limit int) (domain.WatchlistMatchesPage, error)
 	IsInWatchlist(ctx context.Context, userID int64, mediaType domain.MediaType, tmdbID int64) (bool, error)
 	Statuses(ctx context.Context, userID int64, refs []domain.TitleRef) (map[domain.TitleRef]bool, error)
 }
@@ -119,6 +120,7 @@ func NewRouter(authSvc Authenticator, users UserGetter, titles TitleSearcher, cr
 	router.DELETE("/friends/:user_uuid", authMiddleware(authSvc), deleteFriend(friends))
 	router.GET("/users/:id/ratings", authMiddleware(authSvc), listUserRatings(ratings))
 	router.GET("/users/:id/watchlist", authMiddleware(authSvc), listUserWatchlist(watchlist))
+	router.GET("/watchlist/matches", authMiddleware(authSvc), listWatchlistMatches(watchlist))
 	router.GET("/feed", authMiddleware(authSvc), listFeed(feed))
 	router.GET("/discover", authMiddleware(authSvc), listDiscover(catalog))
 	router.GET("/recommendations", authMiddleware(authSvc), listRecommendations(catalog))

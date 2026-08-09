@@ -28,7 +28,7 @@ export function Poster({ title }: { title: Title }) {
   );
 }
 
-export function TitleRow({ title, score }: { title: Title; score?: number }) {
+export function TitleRow({ title, score, footer }: { title: Title; score?: number; footer?: ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [opening, setOpening] = useState(false);
@@ -94,6 +94,7 @@ export function TitleRow({ title, score }: { title: Title; score?: number }) {
           {title.release_year ? ` · ${title.release_year}` : ''}
         </div>
         {title.overview ? <p>{title.overview}</p> : null}
+		{footer}
       </div>
       {score !== undefined ? <ScorePill value={score} /> : null}
     </Link>

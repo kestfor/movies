@@ -206,8 +206,19 @@ export type WatchlistItem = {
 };
 
 export type WatchlistPage = {
-  items: WatchlistItem[];
-  total_count: number;
+	items: WatchlistItem[];
+	total_count: number;
+	next_cursor?: string;
+};
+
+export type WatchlistMatchItem = {
+  title: Title;
+  users: User[];
+  matches_count: number;
+};
+
+export type WatchlistMatchesPage = {
+  items: WatchlistMatchItem[];
   next_cursor?: string;
 };
 
