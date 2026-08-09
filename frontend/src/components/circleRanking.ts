@@ -3,7 +3,8 @@ import type { AchievementLeaderboard } from '../types/api';
 type RankingEntry = AchievementLeaderboard['items'][number];
 
 export function rankingPreview(items: RankingEntry[], targetUUID: string): RankingEntry[] {
-  const preview = items.slice(0, 3);
+  const top = items.slice(0, 3);
+  const preview = top.length > 1 ? [top[1], top[0], ...top.slice(2)] : top;
   const target = items.find((item) => item.user.uuid === targetUUID);
   if (target && !preview.some((item) => item.user.uuid === targetUUID)) preview.push(target);
   return preview;

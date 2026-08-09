@@ -180,8 +180,7 @@ export function ProfilePage() {
           Оценки
         </button>
         <button className={activeTab === 'watchlist' ? 'is-active' : ''} role="tab" aria-selected={activeTab === 'watchlist'} onClick={() => setParam('tab', 'watchlist')}>
-          <span className="profile-tab-label profile-tab-label--full">Хочу посмотреть</span>
-          <span className="profile-tab-label profile-tab-label--short">Список</span>
+          Хочу посмотреть
         </button>
         <button className={activeTab === 'achievements' ? 'is-active' : ''} role="tab" aria-selected={activeTab === 'achievements'} onClick={() => setParam('tab', 'achievements')}>
           Ачивки

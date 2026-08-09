@@ -62,7 +62,7 @@ export function CircleRanking({
         <div className={`circle-ranking__list ${expanded ? 'circle-ranking__list--expanded' : ''}`}>
           {shown.map((entry, index) => (
             <button
-              className={`${entry.user.uuid === targetUUID ? 'circle-ranking__entry--target' : ''} ${!expanded && index === 3 ? 'circle-ranking__entry--separated' : ''}`}
+              className={`${entry.user.uuid === targetUUID ? 'circle-ranking__entry--target' : ''} ${!expanded && entry.user.uuid === items[0]?.user.uuid ? 'circle-ranking__entry--leader' : ''} ${!expanded && index === 3 ? 'circle-ranking__entry--separated' : ''}`}
               key={entry.user.uuid}
               type="button"
               onClick={() => {

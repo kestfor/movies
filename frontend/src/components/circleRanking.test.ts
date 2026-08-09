@@ -10,8 +10,12 @@ const items: AchievementLeaderboard['items'] = [
 ];
 
 describe('circle ranking helpers', () => {
-  it('keeps the opened profile visible outside the top three', () => {
-    expect(rankingPreview(items, 'ivan').map((item) => item.user.uuid)).toEqual(['anna', 'max', 'olga', 'ivan']);
+  it('shows the leader in the center and keeps the opened profile visible', () => {
+    expect(rankingPreview(items, 'ivan').map((item) => item.user.uuid)).toEqual(['max', 'anna', 'olga', 'ivan']);
+  });
+
+  it('centers the leader when the circle has only two participants', () => {
+    expect(rankingPreview(items.slice(0, 2), 'anna').map((item) => item.user.uuid)).toEqual(['max', 'anna']);
   });
 
   it('calculates the XP gap to the next rank', () => {
