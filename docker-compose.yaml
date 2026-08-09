@@ -36,6 +36,8 @@ services:
       BOT_TOKEN: ${TG_BOT_TOKEN:-}
       AUTH_TTL: 1h
       TMDB_API_TOKEN: ${TMDB_API_TOKEN:-}
+      TMDB_BASE_URL: ${TMDB_BASE_URL:-https://api.themoviedb.org/3}
+      TMDB_LANGUAGE: ${TMDB_LANGUAGE:-ru-RU}
       HTTP_PORT: 8080
     restart: on-failure
     depends_on:
