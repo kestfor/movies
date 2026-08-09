@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import type { AchievementLeaderboard } from '../types/api';
 import { haptic } from '../lib/telegram';
 import { Avatar } from './TitleBits';
-import { nextRankGap, rankingPreview } from './circleRanking';
+import { nextRankGap, rankingPreview } from './circleRankingModel';
 import type { ProfileGamificationState } from './ProfileHero';
 
 export function CircleRanking({

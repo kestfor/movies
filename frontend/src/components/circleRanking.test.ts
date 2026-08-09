@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AchievementLeaderboard } from '../types/api';
-import { nextRankGap, rankingPreview } from './circleRanking';
+import { nextRankGap, rankingPreview } from './circleRankingModel';
 
 const items: AchievementLeaderboard['items'] = [
   { rank: 1, user: { uuid: 'anna', first_name: 'Анна' }, total_xp: 2400, level: 7, unlocked_count: 20 },
