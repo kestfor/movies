@@ -210,6 +210,8 @@ func RequiredXP(level int) int {
 
 func RankTitle(level int) string {
 	switch {
+	case level >= 15:
+		return "Алмаз КиноКруга"
 	case level >= 13:
 		return "Легенда КиноКруга"
 	case level >= 10:

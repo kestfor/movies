@@ -183,32 +183,39 @@ func validTitleRef(mediaType domain.MediaType, tmdbID int64) bool {
 }
 
 func buildTree(flat []domain.Comment) []domain.Comment {
-	byID := make(map[int64]*domain.Comment, len(flat))
-	nodes := make([]domain.Comment, len(flat))
-	for i := range flat {
-		nodes[i] = flat[i]
-		nodes[i].Replies = nil
-		byID[nodes[i].ID] = &nodes[i]
-	}
-
+	byID := make(map[int64]domain.Comment, len(flat))
+	children := make(map[int64][]int64, len(flat))
 	rootIDs := make([]int64, 0)
-	for i := range nodes {
-		comment := &nodes[i]
+	for i := range flat {
+		comment := flat[i]
+		comment.Replies = nil
+		byID[comment.ID] = comment
+	}
+	for i := range flat {
+		comment := flat[i]
 		if comment.ParentID == 0 {
 			rootIDs = append(rootIDs, comment.ID)
 			continue
 		}
-		parent, ok := byID[comment.ParentID]
-		if !ok {
+		if _, ok := byID[comment.ParentID]; !ok {
 			rootIDs = append(rootIDs, comment.ID)
 			continue
 		}
-		parent.Replies = append(parent.Replies, *comment)
+		children[comment.ParentID] = append(children[comment.ParentID], comment.ID)
+	}
+
+	var buildNode func(int64) domain.Comment
+	buildNode = func(id int64) domain.Comment {
+		comment := byID[id]
+		for _, childID := range children[id] {
+			comment.Replies = append(comment.Replies, buildNode(childID))
+		}
+		return comment
 	}
 
 	roots := make([]domain.Comment, 0, len(rootIDs))
 	for _, id := range rootIDs {
-		roots = append(roots, *byID[id])
+		roots = append(roots, buildNode(id))
 	}
 	return roots
 }

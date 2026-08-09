@@ -1,23 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { haptic } from '../lib/telegram';
-
-type UnlockNotice = {
-  ids: string[];
-  awardID?: string;
-  title: string;
-  text: string;
-  icon: string;
-  xp: number;
-};
+import { nextUnlockNotice } from './achievementNotice';
+import type { UnlockNotice } from './achievementNotice';
 
 export function AchievementNotifier() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [active, setActive] = useState<UnlockNotice | null>(null);
+  const announcedIDs = useRef(new Set<string>());
   const unseen = useQuery({
     queryKey: ['achievements', 'unseen'],
     queryFn: api.unseenAchievements,
@@ -34,30 +28,12 @@ export function AchievementNotifier() {
 
   useEffect(() => {
     if (active || !unseen.data) return;
-    const achievement = unseen.data.items.find((item) => item.award_id);
-    if (achievement?.award_id) {
-      setActive({
-        ids: [achievement.award_id],
-        awardID: achievement.award_id,
-        title: achievement.title || 'Секретное достижение',
-        text: `Получено · +${achievement.xp || 0} XP`,
-        icon: achievement.icon || '🏆',
-        xp: achievement.xp || 0,
-      });
-      haptic('success');
-      return;
-    }
-    const ids = unseen.data.backfill_award_ids || [];
-    if (unseen.data.backfill_count > 0 && ids.length) {
-      setActive({
-        ids,
-        title: 'Найдены достижения',
-        text: `${unseen.data.backfill_count} уже были вами получены`,
-        icon: '🎉',
-        xp: 200,
-      });
-      haptic('success');
-    }
+    const notice = nextUnlockNotice(unseen.data, announcedIDs.current);
+    if (!notice) return;
+
+    notice.ids.forEach((id) => announcedIDs.current.add(id));
+    setActive(notice);
+    haptic('success');
   }, [active, unseen.data]);
 
   useEffect(() => {

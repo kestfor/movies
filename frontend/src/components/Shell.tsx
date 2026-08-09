@@ -43,7 +43,6 @@ export function Shell() {
 
   useEffect(() => {
     const back = () => {
-      haptic('light');
       if (runTitleBackTransition(location.pathname, navigate)) return;
       navigate(-1);
     };

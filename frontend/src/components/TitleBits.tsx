@@ -15,6 +15,7 @@ import type { FeedItem, RatingWithUser, Title, User } from '../types/api';
 import { ScorePill } from './Ui';
 import { api } from '../api/client';
 import { haptic } from '../lib/telegram';
+import { shouldConfirmTitleLoaded } from '../lib/titleOpenFeedback';
 
 export const posterURL = (path?: string) => path || '';
 
@@ -40,13 +41,15 @@ export function TitleRow({ title, score }: { title: Title; score?: number }) {
     if (opening) return;
 
     const target = event.currentTarget;
+    const titleKey = ['title', title.media_type, String(title.tmdb_id)];
+    const hadCachedTitle = queryClient.getQueryData(titleKey) !== undefined;
     setActiveTitleTransition(title);
     setOpening(true);
     haptic('medium');
 
     try {
       await queryClient.ensureQueryData({
-        queryKey: ['title', title.media_type, String(title.tmdb_id)],
+        queryKey: titleKey,
         queryFn: () => api.title(title.media_type, title.tmdb_id),
       });
     } catch {
@@ -57,7 +60,7 @@ export function TitleRow({ title, score }: { title: Title; score?: number }) {
       return;
     }
 
-    haptic('light');
+    if (shouldConfirmTitleLoaded(hadCachedTitle)) haptic('light');
     target.style.setProperty('view-transition-name', titleTransitionName(title));
 
     const transition = startViewTransition(() => {

@@ -4,9 +4,11 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { CatalogCard } from '../components/CatalogCard';
 import { AchievementsTab } from '../components/AchievementsTab';
+import { CircleRanking } from '../components/CircleRanking';
 import { InfiniteLoad } from '../components/InfiniteLoad';
-import { Avatar, TitleRow } from '../components/TitleBits';
-import { Button, EmptyState, ErrorState, LoadingState, PageHeader, ScorePill } from '../components/Ui';
+import { ProfileHero } from '../components/ProfileHero';
+import { TitleRow } from '../components/TitleBits';
+import { Button, EmptyState, ErrorState, LoadingState, PageHeader } from '../components/Ui';
 import { useWatchlistMutation } from '../hooks/useWatchlistMutation';
 import { haptic } from '../lib/telegram';
 import type { CatalogItem } from '../types/api';
@@ -49,6 +51,22 @@ export function ProfilePage() {
     initialPageParam: undefined as string | undefined,
     enabled: Boolean(userUUID),
   });
+  const firstPage = profile.data?.pages[0];
+  const own = Boolean(userUUID && userUUID === me.data?.uuid);
+  const relationship = firstPage?.relationship;
+  const gamificationVisible = Boolean(userUUID && (own || relationship === 'friend'));
+  const achievements = useQuery({
+    queryKey: ['achievements', 'profile', userUUID],
+    queryFn: () => api.achievements(userUUID as string),
+    enabled: gamificationVisible,
+    retry: false,
+  });
+  const leaderboard = useQuery({
+    queryKey: ['achievements', 'leaderboard'],
+    queryFn: api.achievementLeaderboard,
+    enabled: gamificationVisible,
+    retry: false,
+  });
 
   const refreshSocial = () => {
     queryClient.invalidateQueries({ queryKey: ['profile', userUUID] });
@@ -56,6 +74,7 @@ export function ProfilePage() {
     queryClient.invalidateQueries({ queryKey: ['friends'] });
     queryClient.invalidateQueries({ queryKey: ['friendRequests'] });
     queryClient.invalidateQueries({ queryKey: ['userSearch'] });
+    queryClient.invalidateQueries({ queryKey: ['achievements'] });
   };
   const create = useMutation({
     mutationFn: (uuid: string) => api.createFriendRequest(uuid),
@@ -83,10 +102,7 @@ export function ProfilePage() {
   if (me.isError) return <ErrorState error={me.error} />;
   if (profile.isError) return <ErrorState error={profile.error} />;
 
-  const firstPage = profile.data?.pages[0];
-  const own = userUUID === me.data?.uuid;
   const profileUser = firstPage?.user || me.data;
-  const name = profileUser?.first_name || 'Профиль';
   const ratings = dedupeRatings(profile.data?.pages.flatMap((page) => page.ratings) || []);
   const watchlistItems = dedupeCatalog(
     watchlist.data?.pages.flatMap((page) =>
@@ -94,6 +110,20 @@ export function ProfilePage() {
     ) || [],
   );
   const watchlistState = watchlist.isLoading ? 'loading' : watchlist.isError ? 'error' : 'ready';
+  const gamificationState = !gamificationVisible
+    ? 'locked'
+    : achievements.isError
+      ? 'error'
+      : achievements.data
+        ? 'ready'
+        : 'loading';
+  const leaderboardState = !gamificationVisible
+    ? 'locked'
+    : leaderboard.isError
+      ? 'error'
+      : leaderboard.data
+        ? 'ready'
+        : 'loading';
 
   const setParam = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -103,28 +133,25 @@ export function ProfilePage() {
 
   return (
     <>
-      <PageHeader title={own ? 'Профиль' : name} subtitle={own ? name : 'Оценки и список видны только друзьям'} />
+      <PageHeader title="Профиль" />
       {profileUser ? (
-        <section className="profile-head">
-          <Avatar name={profileUser.first_name} url={profileUser.photo_url} />
-          <div>
-            <h2>{profileUser.first_name}</h2>
-            {profileUser.username ? <p className="muted">@{profileUser.username}</p> : null}
-          </div>
-          {firstPage?.relationship === 'none' ? (
+        <ProfileHero
+          user={profileUser}
+          stats={firstPage?.stats}
+          statsVisible={gamificationVisible}
+          summary={achievements.data?.summary}
+          gamificationState={gamificationState}
+          action={firstPage?.relationship === 'none' ? (
             <Button disabled={create.isPending} onClick={() => create.mutate(profileUser.uuid)}>
               <UserPlus size={18} /> Добавить
             </Button>
-          ) : null}
-          {firstPage?.relationship === 'incoming' ? (
+          ) : firstPage?.relationship === 'incoming' ? (
             <Button disabled={accept.isPending} onClick={() => accept.mutate(profileUser.uuid)}>
               <Check size={18} /> Принять
             </Button>
-          ) : null}
-          {firstPage?.relationship === 'outgoing' ? (
+          ) : firstPage?.relationship === 'outgoing' ? (
             <span className="status-chip"><Clock size={14} /> Заявка отправлена</span>
-          ) : null}
-          {firstPage?.relationship === 'friend' ? (
+          ) : firstPage?.relationship === 'friend' ? (
             <Button
               variant="ghost"
               disabled={remove.isPending}
@@ -135,20 +162,26 @@ export function ProfilePage() {
             >
               <UserMinus size={18} /> Удалить
             </Button>
-          ) : null}
-        </section>
+          ) : undefined}
+        />
       ) : null}
-      <section className="stats">
-        <div><span className="muted">Оценок</span><b>{firstPage?.stats.count || 0}</b></div>
-        <div><span className="muted">Средняя</span><ScorePill value={firstPage?.stats.avg_score || null} /></div>
-      </section>
+      {userUUID ? (
+        <CircleRanking
+          key={userUUID}
+          data={leaderboard.data}
+          targetUUID={userUUID}
+          state={leaderboardState}
+          onRetry={() => leaderboard.refetch()}
+        />
+      ) : null}
 
-      <div className="segmented" role="tablist" aria-label="Разделы профиля">
+      <div className="segmented profile-segmented" role="tablist" aria-label="Разделы профиля">
         <button className={activeTab === 'ratings' ? 'is-active' : ''} role="tab" aria-selected={activeTab === 'ratings'} onClick={() => setParam('tab', 'ratings')}>
           Оценки
         </button>
         <button className={activeTab === 'watchlist' ? 'is-active' : ''} role="tab" aria-selected={activeTab === 'watchlist'} onClick={() => setParam('tab', 'watchlist')}>
-          Хочу посмотреть
+          <span className="profile-tab-label profile-tab-label--full">Хочу посмотреть</span>
+          <span className="profile-tab-label profile-tab-label--short">Список</span>
         </button>
         <button className={activeTab === 'achievements' ? 'is-active' : ''} role="tab" aria-selected={activeTab === 'achievements'} onClick={() => setParam('tab', 'achievements')}>
           Ачивки
@@ -173,7 +206,10 @@ export function ProfilePage() {
                 <InfiniteLoad hasNext={Boolean(profile.hasNextPage)} loading={profile.isFetchingNextPage} onLoad={() => profile.fetchNextPage()} />
               </div>
             ) : (
-              <EmptyState title="Оценок нет" text={own ? 'Поставьте первую оценку на экране «Смотреть».' : 'Профиль пуст или закрыт для не-друзей.'} />
+              <EmptyState
+                title="Оценок нет"
+                text={own ? 'Поставьте первую оценку на экране «Смотреть».' : gamificationVisible ? 'Пользователь пока ничего не оценил.' : 'Оценки доступны только друзьям.'}
+              />
             )}
           </section>
         ) : activeTab === 'watchlist' ? (
@@ -196,12 +232,15 @@ export function ProfilePage() {
                 </div>
               ) : null}
               {!watchlist.isLoading && !watchlist.isError && !watchlistItems.length ? (
-                <EmptyState title="Список пуст" text={own ? 'Добавляйте фильмы и сериалы на экране «Смотреть».' : 'Друг пока ничего не добавил.'} />
+                <EmptyState
+                  title="Список пуст"
+                  text={own ? 'Добавляйте фильмы и сериалы на экране «Смотреть».' : gamificationVisible ? 'Пользователь пока ничего не добавил.' : 'Список доступен только друзьям.'}
+                />
               ) : null}
             </div>
           </section>
         ) : userUUID ? (
-          <AchievementsTab userUUID={userUUID} own={own} highlighted={searchParams.get('achievement')} />
+          <AchievementsTab userUUID={userUUID} own={own} visible={gamificationVisible} highlighted={searchParams.get('achievement')} />
         ) : null}
       </div>
     </>
