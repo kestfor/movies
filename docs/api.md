@@ -504,6 +504,32 @@ Each item still lists all accepted friends who want to watch the title, not only
 
 Results are ordered by `(matches_count, latest_added_at, title_id) DESC`. The opaque keyset cursor is bound to the normalized `friend_id` selection. `limit` defaults to 20 and is capped at 50.
 
+## Achievements
+
+### `GET /users/:id/achievements`
+
+Returns the achievement catalog, progress, XP summary, and relationship metadata for the owner or an accepted friend. The catalog contains 80 permanent achievements. The original 50 use lifetime history; achievements added later count only actions performed at or after their catalog `introduced_at`.
+
+An owner sees every public definition and opaque placeholders for locked secret achievements. A friend sees earned achievements only. An earned secret achievement stays opaque unless the viewer has earned the same achievement code; when both users own it, the response includes its full definition together with the profile owner's `award_id` and `earned_at`. Deep links follow the same rule. Other users receive `403 forbidden`.
+
+### `GET /achievements/leaderboard`
+
+Returns the current user and accepted friends ordered by total achievement XP. There is no global leaderboard.
+
+### `GET /achievements/unseen`
+
+Returns newly earned live or reconciled achievements for the owner. Prospective achievements are never returned as backfill awards.
+
+### `POST /achievements/seen`
+
+Marks up to 100 achievement award UUIDs as seen:
+
+```json
+{ "award_ids": ["550e8400-e29b-41d4-a716-446655440000"] }
+```
+
+New catalog definitions use `since_introduction` unless a future product decision explicitly declares a lifetime achievement. The HTTP representation does not expose this internal policy; the profile UI explains that progress for new achievements starts when they appear.
+
 ## Local Smoke Scripts
 
 ```bash

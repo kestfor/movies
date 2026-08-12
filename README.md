@@ -167,6 +167,14 @@ docs                                  Product and API documentation
 
 GitHub protects `main` with a required pull request and CI quality gate. After a squash merge, the resulting push to `main` triggers the existing Coolify Docker Compose deployment.
 
+Achievement backfill is no longer part of normal startup. It remains available for manual recovery of lifetime achievements:
+
+```bash
+docker compose --profile maintenance run --rm achievements-backfill
+```
+
+Achievements with the `since_introduction` policy are always excluded from this command.
+
 Production tokens, webhook endpoints, and Coolify resource settings live outside the repository.
 
 ## License

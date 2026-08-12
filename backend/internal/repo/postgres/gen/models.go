@@ -54,6 +54,50 @@ func (ns NullAchievementAwardSource) Value() (driver.Value, error) {
 	return string(ns.AchievementAwardSource), nil
 }
 
+type AchievementFactKind string
+
+const (
+	AchievementFactKindRatingCreated  AchievementFactKind = "rating_created"
+	AchievementFactKindRatingUpdated  AchievementFactKind = "rating_updated"
+	AchievementFactKindCommentCreated AchievementFactKind = "comment_created"
+	AchievementFactKindWatchlistAdded AchievementFactKind = "watchlist_added"
+)
+
+func (e *AchievementFactKind) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AchievementFactKind(s)
+	case string:
+		*e = AchievementFactKind(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AchievementFactKind: %T", src)
+	}
+	return nil
+}
+
+type NullAchievementFactKind struct {
+	AchievementFactKind AchievementFactKind
+	Valid               bool // Valid is true if AchievementFactKind is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAchievementFactKind) Scan(value interface{}) error {
+	if value == nil {
+		ns.AchievementFactKind, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AchievementFactKind.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAchievementFactKind) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AchievementFactKind), nil
+}
+
 type ActivityEventKind string
 
 const (
@@ -197,6 +241,20 @@ type AchievementCatalogState struct {
 	AchievementCode       string
 	DefinitionFingerprint string
 	IntroducedAt          pgtype.Timestamptz
+}
+
+type AchievementFact struct {
+	ID                int64
+	Kind              AchievementFactKind
+	ActorID           int64
+	TitleID           int64
+	EntityID          pgtype.Int8
+	ParentEntityID    pgtype.Int8
+	AvgTenths         pgtype.Int2
+	PreviousAvgTenths pgtype.Int2
+	Scores            []byte
+	PreviousScores    []byte
+	OccurredAt        pgtype.Timestamptz
 }
 
 type ActivityEvent struct {

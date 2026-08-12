@@ -14,6 +14,12 @@ import (
 
 type MetricCode string
 type Category string
+type AwardPolicy string
+
+const (
+	AwardPolicyLifetime          AwardPolicy = "lifetime"
+	AwardPolicySinceIntroduction AwardPolicy = "since_introduction"
+)
 
 const (
 	CategoryRatings   Category = "ratings"
@@ -59,6 +65,36 @@ const (
 	MetricDistinctRepliersTotal        MetricCode = "distinct_repliers_total"
 	MetricRootDirectRepliesMax         MetricCode = "root_direct_replies_max"
 	MetricFriendWatchlistMatchExists   MetricCode = "friend_watchlist_match_exists"
+	MetricNoWeakLinksTotal             MetricCode = "no_weak_links_total"
+	MetricNoConcessionsTotal           MetricCode = "no_concessions_total"
+	MetricContrastCutExists            MetricCode = "contrast_cut_exists"
+	MetricSignatureTouchMax            MetricCode = "signature_touch_max"
+	MetricThreeErasSameDayMax          MetricCode = "three_eras_same_day_max"
+	MetricGenreDecadesMax              MetricCode = "genre_decades_max"
+	MetricParallelYearsTotal           MetricCode = "parallel_years_total"
+	MetricFiveNotchesTotal             MetricCode = "five_notches_total"
+	MetricMiddleGroundExists           MetricCode = "middle_ground_exists"
+	MetricLoneDissenterExists          MetricCode = "lone_dissenter_exists"
+	MetricTogetherAndApartMax          MetricCode = "together_and_apart_max"
+	MetricRatedRoundTableExists        MetricCode = "rated_round_table_exists"
+	MetricCriticDuetTotal              MetricCode = "critic_duet_total"
+	MetricAfterCreditsTotal            MetricCode = "after_credits_total"
+	MetricCouncilWatchlistMax          MetricCode = "council_watchlist_max"
+	MetricOpeningNightExists           MetricCode = "opening_night_exists"
+	MetricChainReactionMax             MetricCode = "chain_reaction_max"
+	MetricTrustedRecommendationExists  MetricCode = "trusted_recommendation_exists"
+	MetricChangedMindExists            MetricCode = "changed_mind_exists"
+	MetricPatientTicketExists          MetricCode = "patient_ticket_exists"
+	MetricClearQueueMax                MetricCode = "clear_queue_max"
+	MetricAgreedSessionExists          MetricCode = "agreed_session_exists"
+	MetricRelayExists                  MetricCode = "relay_exists"
+	MetricWordForWordMax               MetricCode = "word_for_word_max"
+	MetricDiscussThenRateExists        MetricCode = "discuss_then_rate_exists"
+	MetricThreadResurrectionExists     MetricCode = "thread_resurrection_exists"
+	MetricGoodTipsMax                  MetricCode = "good_tips_max"
+	MetricMoodArcExists                MetricCode = "mood_arc_exists"
+	MetricDeliberateRatingExists       MetricCode = "deliberate_rating_exists"
+	MetricSharedFinaleExists           MetricCode = "shared_finale_exists"
 )
 
 var FixedCriterionCodes = []string{
@@ -66,16 +102,17 @@ var FixedCriterionCodes = []string{
 }
 
 type Definition struct {
-	Code        string     `json:"code"`
-	Metric      MetricCode `json:"metric"`
-	Target      int64      `json:"target"`
-	XP          int        `json:"xp"`
-	Category    Category   `json:"category"`
-	Secret      bool       `json:"secret"`
-	Icon        string     `json:"icon"`
-	Title       string     `json:"title"`
-	Description string     `json:"description"`
-	SortOrder   int        `json:"sort_order"`
+	Code        string      `json:"code"`
+	Metric      MetricCode  `json:"metric"`
+	Target      int64       `json:"target"`
+	XP          int         `json:"xp"`
+	Category    Category    `json:"category"`
+	Secret      bool        `json:"secret"`
+	Icon        string      `json:"icon"`
+	Title       string      `json:"title"`
+	Description string      `json:"description"`
+	SortOrder   int         `json:"sort_order"`
+	AwardPolicy AwardPolicy `json:"award_policy"`
 }
 
 var catalog = []Definition{
@@ -129,10 +166,45 @@ var catalog = []Definition{
 	{Code: "echo", Metric: MetricDistinctRepliersTotal, Target: 3, XP: 200, Category: CategoryComments, Icon: "🗯️", Title: "Эхо", Description: "Получить ответы от трёх разных пользователей", SortOrder: 48},
 	{Code: "hot_thread", Metric: MetricRootDirectRepliesMax, Target: 5, XP: 350, Category: CategoryComments, Secret: true, Icon: "🔥", Title: "Горячая ветка", Description: "Получить под своим корневым комментарием 5 прямых ответов хотя бы от двух пользователей", SortOrder: 49},
 	{Code: "matching_plans", Metric: MetricFriendWatchlistMatchExists, Target: 1, XP: 100, Category: CategoryWatchlist, Secret: true, Icon: "🔗", Title: "Планы совпали", Description: "Одновременно иметь один и тот же тайтл в списке «Хочу посмотреть» с другом", SortOrder: 50},
+	{Code: "no_weak_links", Metric: MetricNoWeakLinksTotal, Target: 3, XP: 200, Category: CategoryTaste, Icon: "🛡️", Title: "Без слабых мест", Description: "Поставить 3 полные оценки, в каждой все критерии не ниже 8", SortOrder: 51, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "no_concessions", Metric: MetricNoConcessionsTotal, Target: 3, XP: 200, Category: CategoryTaste, Icon: "🧊", Title: "Без поблажек", Description: "Поставить 3 полные оценки, в каждой все критерии не выше 5", SortOrder: 52, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "contrast_cut", Metric: MetricContrastCutExists, Target: 1, XP: 350, Category: CategoryTaste, Secret: true, Icon: "🎚️", Title: "Контрастный монтаж", Description: "В одной полной оценке одновременно поставить 1 и 10 при среднем балле от 4 до 7", SortOrder: 53, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "signature_touch", Metric: MetricSignatureTouchMax, Target: 3, XP: 200, Category: CategoryTaste, Icon: "✒️", Title: "Фирменный почерк", Description: "В 3 полных оценках сделать один критерий единственным самым высоким", SortOrder: 54, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "three_eras_one_day", Metric: MetricThreeErasSameDayMax, Target: 3, XP: 200, Category: CategoryRatings, Icon: "🕰️", Title: "Три эпохи за вечер", Description: "За один день оценить 3 тайтла из 3 разных десятилетий", SortOrder: 55, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "genre_through_ages", Metric: MetricGenreDecadesMax, Target: 4, XP: 350, Category: CategoryTaste, Icon: "🗿", Title: "Жанр сквозь эпохи", Description: "Оценить тайтлы одного жанра из 4 разных десятилетий", SortOrder: 56, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "parallel_years", Metric: MetricParallelYearsTotal, Target: 2, XP: 200, Category: CategoryTaste, Icon: "📡", Title: "Параллельный эфир", Description: "Для 2 разных годов оценить и фильм, и сериал", SortOrder: 57, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "five_notches", Metric: MetricFiveNotchesTotal, Target: 5, XP: 350, Category: CategoryTaste, Icon: "📊", Title: "Пять делений", Description: "Полными оценками закрыть 5 разных округлённых баллов, включая низкий и высокий", SortOrder: 58, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "middle_ground", Metric: MetricMiddleGroundExists, Target: 1, XP: 500, Category: CategorySocial, Secret: true, Icon: "⚖️", Title: "Третейский судья", Description: "Оказаться посередине между сильно различающимися оценками двух друзей", SortOrder: 59, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "lone_dissenter", Metric: MetricLoneDissenterExists, Target: 1, XP: 500, Category: CategorySocial, Secret: true, Icon: "🗿", Title: "Особое мнение", Description: "Сильно разойтись с двумя друзьями, которые оценили тайтл почти одинаково", SortOrder: 60, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "together_and_apart", Metric: MetricTogetherAndApartMax, Target: 2, XP: 350, Category: CategorySocial, Secret: true, Icon: "↔️", Title: "И вместе, и врозь", Description: "С одним другом дважды почти совпасть и дважды сильно разойтись", SortOrder: 61, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "rated_round_table", Metric: MetricRatedRoundTableExists, Target: 1, XP: 350, Category: CategorySocial, Icon: "🫖", Title: "Круглый стол", Description: "Вместе с двумя друзьями оценить и прокомментировать один тайтл", SortOrder: 62, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "critic_duet", Metric: MetricCriticDuetTotal, Target: 2, XP: 350, Category: CategoryComments, Icon: "🎭", Title: "Критический дуэт", Description: "С одним другом обоим оценить и прокомментировать 2 одинаковых тайтла", SortOrder: 63, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "after_credits", Metric: MetricAfterCreditsTotal, Target: 2, XP: 200, Category: CategoryComments, Icon: "🌒", Title: "После титров", Description: "Прокомментировать 2 тайтла минимум через 48 часов после своей оценки", SortOrder: 64, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "council_watchlist", Metric: MetricCouncilWatchlistMax, Target: 2, XP: 350, Category: CategoryWatchlist, Secret: true, Icon: "📜", Title: "Совет круга", Description: "Добавить один тайтл в список «Хочу посмотреть» вместе с двумя друзьями", SortOrder: 65, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "opening_night", Metric: MetricOpeningNightExists, Target: 1, XP: 350, Category: CategorySocial, Secret: true, Icon: "🎟️", Title: "Премьера в кругу", Description: "С другом оценить один тайтл с разницей не больше 4 часов", SortOrder: 66, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "chain_reaction", Metric: MetricChainReactionMax, Target: 2, XP: 350, Category: CategorySocial, Icon: "🁢", Title: "Цепная реакция", Description: "После вашей оценки получить оценки того же тайтла от двух друзей за 72 часа", SortOrder: 67, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "trusted_recommendation", Metric: MetricTrustedRecommendationExists, Target: 1, XP: 350, Category: CategoryWatchlist, Icon: "💡", Title: "Совет принят", Description: "Быстро добавить высоко оценённый другом тайтл и тоже высоко его оценить", SortOrder: 68, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "changed_mind", Metric: MetricChangedMindExists, Target: 1, XP: 500, Category: CategorySocial, Secret: true, Icon: "🔄", Title: "Переубедили", Description: "После ответа друга изменить низкую оценку тайтла минимум до 7", SortOrder: 69, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "patient_ticket", Metric: MetricPatientTicketExists, Target: 1, XP: 200, Category: CategoryWatchlist, Icon: "🎫", Title: "Билет дождался", Description: "Оценить тайтл через 7–30 дней после добавления в список", SortOrder: 70, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "clear_the_queue", Metric: MetricClearQueueMax, Target: 2, XP: 200, Category: CategoryWatchlist, Icon: "🧹", Title: "Разобрал очередь", Description: "За 48 часов оценить 2 тайтла из списка «Хочу посмотреть»", SortOrder: 71, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "agreed_session", Metric: MetricAgreedSessionExists, Target: 1, XP: 350, Category: CategoryWatchlist, Secret: true, Icon: "🤝", Title: "Сеанс согласован", Description: "С другом почти одновременно добавить тайтл в список и обоим оценить его за 14 дней", SortOrder: 72, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "relay", Metric: MetricRelayExists, Target: 1, XP: 500, Category: CategorySocial, Secret: true, Icon: "🏁", Title: "Эстафета", Description: "Оценить тайтл между двумя друзьями с интервалами не больше 48 часов", SortOrder: 73, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "word_for_word", Metric: MetricWordForWordMax, Target: 4, XP: 200, Category: CategoryComments, Icon: "💬", Title: "Слово за слово", Description: "Обменяться с другом 4 чередующимися сообщениями в одной ветке за 48 часов", SortOrder: 74, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "discuss_then_rate", Metric: MetricDiscussThenRateExists, Target: 1, XP: 500, Category: CategoryComments, Secret: true, Icon: "🗣️", Title: "Сначала обсудили", Description: "С другом сначала обсудить тайтл, затем близко оценить его за 48 часов", SortOrder: 75, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "thread_resurrection", Metric: MetricThreadResurrectionExists, Target: 1, XP: 350, Category: CategoryComments, Secret: true, Icon: "🪄", Title: "Второй сезон", Description: "Оживить обсуждение старше 14 дней и получить ответ автора за 48 часов", SortOrder: 76, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "two_good_tips", Metric: MetricGoodTipsMax, Target: 2, XP: 350, Category: CategorySocial, Icon: "👍", Title: "Два верных совета", Description: "Высоко оценить два недавних совета от разных друзей", SortOrder: 77, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "mood_arc", Metric: MetricMoodArcExists, Target: 1, XP: 350, Category: CategoryRatings, Secret: true, Icon: "🎢", Title: "Сюжетный поворот", Description: "За 48 часов поставить низкую, среднюю и высокую оценки в таком порядке", SortOrder: 78, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "deliberate_rating", Metric: MetricDeliberateRatingExists, Target: 1, XP: 200, Category: CategoryTaste, Icon: "🧠", Title: "Выверенный вердикт", Description: "Начать с части критериев и завершить полную оценку через 12 часов–7 дней", SortOrder: 79, AwardPolicy: AwardPolicySinceIntroduction},
+	{Code: "shared_finale", Metric: MetricSharedFinaleExists, Target: 1, XP: 350, Category: CategorySocial, Icon: "🎆", Title: "Общий финал", Description: "В один день близко оценить тайтл вместе с двумя друзьями", SortOrder: 80, AwardPolicy: AwardPolicySinceIntroduction},
 }
 
 func Definitions() []Definition {
 	result := append([]Definition(nil), catalog...)
+	for index := range result {
+		if result[index].AwardPolicy == "" {
+			result[index].AwardPolicy = AwardPolicyLifetime
+		}
+	}
 	sort.Slice(result, func(i, j int) bool { return result[i].SortOrder < result[j].SortOrder })
 	return result
 }
@@ -169,6 +241,9 @@ func ValidateCatalog(definitions []Definition) error {
 		orders[definition.SortOrder] = true
 		if !knownMetrics[definition.Metric] || !knownCategories[definition.Category] {
 			return fmt.Errorf("unknown achievement metric or category for %s", definition.Code)
+		}
+		if definition.AwardPolicy != AwardPolicyLifetime && definition.AwardPolicy != AwardPolicySinceIntroduction {
+			return fmt.Errorf("invalid achievement award policy for %s", definition.Code)
 		}
 		if definition.Target <= 0 || !allowedXP[definition.XP] || definition.Icon == "" || definition.Title == "" || definition.Description == "" {
 			return fmt.Errorf("invalid achievement definition %s", definition.Code)
@@ -239,5 +314,15 @@ func allMetrics() []MetricCode {
 		MetricFriendsWithSharedTitleTotal, MetricFriendFarRatingsMax, MetricTitleSameAvgFriendCountMax,
 		MetricRatedAndCommentedTitlesTotal, MetricDistinctRepliersTotal, MetricRootDirectRepliesMax,
 		MetricFriendWatchlistMatchExists,
+		MetricNoWeakLinksTotal, MetricNoConcessionsTotal, MetricContrastCutExists,
+		MetricSignatureTouchMax, MetricThreeErasSameDayMax, MetricGenreDecadesMax,
+		MetricParallelYearsTotal, MetricFiveNotchesTotal, MetricMiddleGroundExists,
+		MetricLoneDissenterExists, MetricTogetherAndApartMax, MetricRatedRoundTableExists,
+		MetricCriticDuetTotal, MetricAfterCreditsTotal, MetricCouncilWatchlistMax,
+		MetricOpeningNightExists, MetricChainReactionMax, MetricTrustedRecommendationExists,
+		MetricChangedMindExists, MetricPatientTicketExists, MetricClearQueueMax,
+		MetricAgreedSessionExists, MetricRelayExists, MetricWordForWordMax,
+		MetricDiscussThenRateExists, MetricThreadResurrectionExists, MetricGoodTipsMax,
+		MetricMoodArcExists, MetricDeliberateRatingExists, MetricSharedFinaleExists,
 	}
 }

@@ -37,6 +37,7 @@ export function AchievementsTab({
 
   return (
     <section className="achievements-tab" aria-label="Достижения пользователя">
+      {own ? <p className="achievement-baseline-note">Прогресс новых достижений считается с момента их появления.</p> : null}
       {!items.length ? (
         <EmptyState title="Пока без ачивок" text="Совместные оценки и обсуждения помогут открыть первые достижения." />
       ) : (
