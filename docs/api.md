@@ -510,7 +510,7 @@ Results are ordered by `(matches_count, latest_added_at, title_id) DESC`. The op
 
 Returns the achievement catalog, progress, XP summary, and relationship metadata for the owner or an accepted friend. The catalog contains 80 permanent achievements. The original 50 use lifetime history; achievements added later count only actions performed at or after their catalog `introduced_at`.
 
-An owner sees every public definition and opaque placeholders for locked secret achievements. A friend sees earned achievements only. Other users receive `403 forbidden`.
+An owner sees every public definition and opaque placeholders for locked secret achievements. A friend sees earned achievements only. An earned secret achievement stays opaque unless the viewer has earned the same achievement code; when both users own it, the response includes its full definition together with the profile owner's `award_id` and `earned_at`. Deep links follow the same rule. Other users receive `403 forbidden`.
 
 ### `GET /achievements/leaderboard`
 

@@ -184,6 +184,13 @@ func (s *Service) GetByUUID(ctx context.Context, viewerID int64, rawUUID string)
 	if err != nil {
 		return domain.AchievementsPage{}, err
 	}
+	var viewerAwards []StoredAward
+	if relationship == "friend" {
+		viewerAwards, err = s.repo.ListAwards(ctx, viewerID)
+		if err != nil {
+			return domain.AchievementsPage{}, err
+		}
+	}
 	metrics, err := s.repo.ListMetricValues(ctx, target.ID)
 	if err != nil {
 		return domain.AchievementsPage{}, err
@@ -195,7 +202,7 @@ func (s *Service) GetByUUID(ctx context.Context, viewerID int64, rawUUID string)
 	return domain.AchievementsPage{
 		User: target, Relationship: relationship,
 		Summary:      s.summary(target.ID, awards, leaderboard),
-		Achievements: s.visibleAchievements(relationship, awards, metrics),
+		Achievements: s.visibleAchievements(relationship, awards, viewerAwards, metrics),
 	}, nil
 }
 
@@ -275,19 +282,23 @@ func (s *Service) summary(userID int64, awards []StoredAward, leaderboard []doma
 	return summary
 }
 
-func (s *Service) visibleAchievements(relationship string, awards []StoredAward, metrics map[MetricCode]int64) []domain.Achievement {
+func (s *Service) visibleAchievements(relationship string, awards, viewerAwards []StoredAward, metrics map[MetricCode]int64) []domain.Achievement {
 	byCode := make(map[string]StoredAward, len(awards))
 	for _, award := range awards {
 		byCode[award.Code] = award
 	}
 	if relationship == "friend" {
+		viewerAwardCodes := make(map[string]bool, len(viewerAwards))
+		for _, award := range viewerAwards {
+			viewerAwardCodes[award.Code] = true
+		}
 		result := make([]domain.Achievement, 0, len(awards))
 		for _, definition := range s.definitions {
 			award, ok := byCode[definition.Code]
 			if !ok {
 				continue
 			}
-			if definition.Secret {
+			if definition.Secret && !viewerAwardCodes[definition.Code] {
 				earnedAt := award.EarnedAt
 				result = append(result, domain.Achievement{
 					AwardID: award.ID, Secret: true, Unlocked: true,
