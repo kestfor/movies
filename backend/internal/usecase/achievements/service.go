@@ -12,7 +12,7 @@ import (
 	"movies/backend/internal/domain"
 )
 
-const EvaluatorVersion = 1
+const EvaluatorVersion = 2
 
 var (
 	ErrValidation = errors.New("validation_failed")
@@ -114,11 +114,25 @@ func (s *Service) EvaluateUser(ctx context.Context, userID int64, source AwardSo
 	if err != nil {
 		return nil, err
 	}
-	evaluation := s.evaluator.Evaluate(snapshot, evaluatedAt)
+	evaluation := s.evaluator.EvaluateWithIntroduced(snapshot, evaluatedAt, introduced)
+	evaluation.Candidates = candidatesForSource(evaluation.Candidates, source)
 	return s.repo.SaveEvaluation(ctx, SaveEvaluationParams{
 		UserID: userID, Evaluation: evaluation, Introduced: introduced,
 		Source: source, EvaluatedAt: evaluatedAt,
 	})
+}
+
+func candidatesForSource(candidates []Candidate, source AwardSource) []Candidate {
+	if source != AwardSourceBackfill {
+		return candidates
+	}
+	result := make([]Candidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if candidate.Definition.AwardPolicy == AwardPolicyLifetime {
+			result = append(result, candidate)
+		}
+	}
+	return result
 }
 
 func (s *Service) ObserveCircle(ctx context.Context, userID int64) {

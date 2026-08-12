@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"time"
 
 	"movies/backend/internal/domain"
 	gen "movies/backend/internal/repo/postgres/gen"
@@ -75,7 +76,19 @@ func (r *WatchlistRepository) Add(ctx context.Context, userID int64, title domai
 	if rated {
 		return false, nil
 	}
-	if err := q.AddWatchlistItem(ctx, gen.AddWatchlistItemParams{UserID: userID, TitleID: titleID}); err != nil {
+	var createdAt time.Time
+	err = tx.QueryRow(ctx, `
+INSERT INTO watchlist_items (user_id, title_id)
+VALUES ($1, $2)
+ON CONFLICT (user_id, title_id) DO NOTHING
+RETURNING created_at`, userID, titleID).Scan(&createdAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if err := insertWatchlistAchievementFact(ctx, tx, userID, titleID, createdAt); err != nil {
 		return false, err
 	}
 	if err := tx.Commit(ctx); err != nil {

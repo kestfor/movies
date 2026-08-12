@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -105,7 +106,70 @@ func (r *AchievementRepository) LoadSnapshot(ctx context.Context, userID int64) 
 	for index := range snapshot.Friends {
 		snapshot.Friends[index].Watchlist = watchlists[snapshot.Friends[index].User.ID]
 	}
+	facts, err := r.loadAchievementFacts(ctx, append(friendIDs(snapshot.Friends), userID))
+	if err != nil {
+		return snapshot, err
+	}
+	snapshot.ActionFacts = facts
 	return snapshot, nil
+}
+
+func (r *AchievementRepository) loadAchievementFacts(ctx context.Context, userIDs []int64) ([]usecaseachievements.ActionFact, error) {
+	rows, err := r.pool.Query(ctx, `
+SELECT af.id, af.kind::text, af.actor_id, af.title_id, af.entity_id, af.parent_entity_id,
+       af.avg_tenths, af.previous_avg_tenths, af.scores, af.previous_scores, af.occurred_at,
+       t.media_type, t.release_year, t.genres
+FROM achievement_facts af
+JOIN titles t ON t.id = af.title_id
+WHERE af.actor_id = ANY($1::bigint[])
+ORDER BY af.occurred_at, af.id`, userIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]usecaseachievements.ActionFact, 0)
+	for rows.Next() {
+		var (
+			fact                                   usecaseachievements.ActionFact
+			kind                                   string
+			entityID, parentID                     pgtype.Int8
+			avgTenths, previousAvgTenths           pgtype.Int2
+			scoresJSON, previousScoresJSON, genres []byte
+			occurredAt                             pgtype.Timestamptz
+			mediaType                              gen.MediaType
+			releaseYear                            pgtype.Int4
+		)
+		if err := rows.Scan(
+			&fact.ID, &kind, &fact.ActorID, &fact.TitleID, &entityID, &parentID,
+			&avgTenths, &previousAvgTenths, &scoresJSON, &previousScoresJSON, &occurredAt,
+			&mediaType, &releaseYear, &genres,
+		); err != nil {
+			return nil, err
+		}
+		fact.Kind = usecaseachievements.ActionFactKind(kind)
+		fact.EntityID = entityID.Int64
+		fact.ParentEntityID = parentID.Int64
+		fact.MediaType = domain.MediaType(mediaType)
+		fact.ReleaseYear = int(releaseYear.Int32)
+		fact.Genres = unmarshalGenres(genres)
+		fact.OccurredAt = occurredAt.Time
+		fact.Scores = make(map[string]int)
+		fact.PreviousScores = make(map[string]int)
+		if avgTenths.Valid {
+			fact.AvgScore = float64(avgTenths.Int16) / 10
+		}
+		if previousAvgTenths.Valid {
+			fact.PreviousAvgScore = float64(previousAvgTenths.Int16) / 10
+		}
+		if err := json.Unmarshal(scoresJSON, &fact.Scores); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(previousScoresJSON, &fact.PreviousScores); err != nil {
+			return nil, err
+		}
+		result = append(result, fact)
+	}
+	return result, rows.Err()
 }
 
 func (r *AchievementRepository) SaveEvaluation(ctx context.Context, params usecaseachievements.SaveEvaluationParams) ([]usecaseachievements.StoredAward, error) {

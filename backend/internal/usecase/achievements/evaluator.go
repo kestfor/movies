@@ -42,6 +42,32 @@ type WatchlistFact struct {
 	CreatedAt time.Time
 }
 
+type ActionFactKind string
+
+const (
+	ActionFactRatingCreated  ActionFactKind = "rating_created"
+	ActionFactRatingUpdated  ActionFactKind = "rating_updated"
+	ActionFactCommentCreated ActionFactKind = "comment_created"
+	ActionFactWatchlistAdded ActionFactKind = "watchlist_added"
+)
+
+type ActionFact struct {
+	ID               int64
+	Kind             ActionFactKind
+	ActorID          int64
+	TitleID          int64
+	EntityID         int64
+	ParentEntityID   int64
+	MediaType        domain.MediaType
+	ReleaseYear      int
+	Genres           []string
+	AvgScore         float64
+	PreviousAvgScore float64
+	Scores           map[string]int
+	PreviousScores   map[string]int
+	OccurredAt       time.Time
+}
+
 type Snapshot struct {
 	UserID        int64
 	RatingHistory []RatingFact
@@ -49,6 +75,7 @@ type Snapshot struct {
 	Friends       []FriendFact
 	Comments      []CommentFact
 	Watchlist     []WatchlistFact
+	ActionFacts   []ActionFact
 }
 
 type MetricResult struct {
@@ -83,14 +110,26 @@ func NewEvaluator(definitions []Definition) (*Evaluator, error) {
 }
 
 func (e *Evaluator) Evaluate(snapshot Snapshot, fallback time.Time) Evaluation {
+	return e.evaluate(snapshot, fallback, nil)
+}
+
+func (e *Evaluator) EvaluateWithIntroduced(snapshot Snapshot, fallback time.Time, introduced map[string]time.Time) Evaluation {
+	return e.evaluate(snapshot, fallback, introduced)
+}
+
+func (e *Evaluator) evaluate(snapshot Snapshot, fallback time.Time, introduced map[string]time.Time) Evaluation {
 	metrics := make(map[MetricCode]MetricResult, len(allMetrics()))
 	e.ratingMetrics(snapshot, metrics)
 	e.socialMetrics(snapshot, metrics)
 	e.commentMetrics(snapshot, metrics)
 	e.watchlistMetrics(snapshot, metrics)
+	e.prospectiveMetrics(snapshot, metrics, introduced)
 
 	candidates := make([]Candidate, 0)
 	for _, definition := range e.definitions {
+		if definition.AwardPolicy == AwardPolicySinceIntroduction && introduced[definition.Code].IsZero() {
+			continue
+		}
 		result := metrics[definition.Metric]
 		if result.Value < definition.Target {
 			continue

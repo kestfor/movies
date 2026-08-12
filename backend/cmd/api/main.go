@@ -65,6 +65,10 @@ func main() {
 		logger.Error("initialize achievements", "error", err)
 		os.Exit(1)
 	}
+	if _, err := achievementSvc.EnsureCatalog(context.Background(), time.Now()); err != nil {
+		logger.Error("ensure achievement catalog", "error", err)
+		os.Exit(1)
+	}
 	ratingSvc.SetAchievementObserver(achievementSvc)
 	watchlistSvc.SetAchievementObserver(achievementSvc)
 	commentSvc.SetAchievementObserver(achievementSvc)

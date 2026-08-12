@@ -90,6 +90,9 @@ func (r *CommentRepository) Create(ctx context.Context, params usecasecomments.C
 	}); err != nil {
 		return domain.Comment{}, err
 	}
+	if err := insertCommentAchievementFact(ctx, tx, params.UserID, titleID, comment.ID, params.ParentID, comment.CreatedAt.Time); err != nil {
+		return domain.Comment{}, err
+	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return domain.Comment{}, err

@@ -2780,6 +2780,13 @@ a {
   gap: 16px;
 }
 
+.achievement-baseline-note {
+  margin: 0;
+  color: var(--tg-hint);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .achievement-summary {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

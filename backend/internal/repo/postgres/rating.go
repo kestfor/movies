@@ -102,6 +102,10 @@ func (r *RatingRepository) Upsert(ctx context.Context, params usecaseratings.Ups
 	if _, err := q.LockTitleForUpdate(ctx, titleID); err != nil {
 		return domain.Rating{}, err
 	}
+	previous, err := loadStoredRatingState(ctx, tx, params.UserID, titleID)
+	if err != nil {
+		return domain.Rating{}, err
+	}
 
 	rating, err := q.UpsertRating(ctx, gen.UpsertRatingParams{
 		UserID:  params.UserID,
@@ -135,6 +139,19 @@ func (r *RatingRepository) Upsert(ctx context.Context, params usecaseratings.Ups
 
 	if err := q.DeleteWatchlistItem(ctx, gen.DeleteWatchlistItemParams{UserID: params.UserID, TitleID: titleID}); err != nil {
 		return domain.Rating{}, err
+	}
+
+	factKind := "rating_created"
+	if previous != nil {
+		factKind = "rating_updated"
+	}
+	if previous == nil || previous.AvgTenths != params.AvgTenths || !equalScores(previous.Scores, params.Scores) {
+		if err := insertRatingAchievementFact(
+			ctx, tx, factKind, params.UserID, titleID, rating.ID,
+			params.AvgTenths, params.Scores, previous, rating.UpdatedAt.Time,
+		); err != nil {
+			return domain.Rating{}, err
+		}
 	}
 
 	if rating.Inserted {
