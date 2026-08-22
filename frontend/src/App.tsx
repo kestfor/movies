@@ -7,12 +7,17 @@ import { ProfilePage } from './pages/ProfilePage';
 import { WatchPage } from './pages/WatchPage';
 import { TitlePage } from './pages/TitlePage';
 import { Shell } from './components/Shell';
+import { getStartParam } from './lib/telegram';
+import { titlePathFromStartParam } from './lib/startParam';
 
 export function App() {
+  const titleStartPath = titlePathFromStartParam(getStartParam());
+
   return (
     <Routes>
       <Route element={<AuthGate />}>
         <Route element={<Shell />}>
+          <Route path="/" element={<Navigate to={titleStartPath || '/feed'} replace />} />
           <Route path="/feed" element={<FeedPage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/watch" element={<WatchPage />} />

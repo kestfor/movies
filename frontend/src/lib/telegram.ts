@@ -1,3 +1,6 @@
+import type { MediaType } from '../types/api';
+import { titleTelegramDeepLink } from './startParam';
+
 type ThemeParams = Record<string, string | undefined>;
 
 type TelegramWebApp = {
@@ -176,4 +179,19 @@ export function shareInvite(currentUserUUID: string): void {
     : `${window.location.origin}/friends?invite=uid_${currentUserUUID}`;
   const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${text}`;
   tg?.openTelegramLink?.(shareUrl) || window.open(shareUrl, '_blank');
+}
+
+export function shareTitle(mediaType: MediaType, tmdbID: number, title: string): void {
+  haptic('light');
+  const bot = import.meta.env.VITE_BOT_USERNAME || 'moviesclubtechbot';
+  const app = import.meta.env.VITE_WEBAPP_SHORT_NAME || 'moviesclub';
+  const link = titleTelegramDeepLink(bot, app, mediaType, tmdbID);
+  const text = encodeURIComponent(`Смотри «${title}» в КиноКруге`);
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${text}`;
+
+  if (tg?.openTelegramLink) {
+    tg.openTelegramLink(shareUrl);
+    return;
+  }
+  window.open(shareUrl, '_blank');
 }
