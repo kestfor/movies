@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bookmark, BookmarkCheck } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Share2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
@@ -11,7 +11,7 @@ import { Button, EmptyState, ErrorState, LoadingState, ScorePill } from '../comp
 import { useToast } from '../components/Toast';
 import { getActiveTitleTransitionByRef, getActiveTitleTransitionNameByRef } from '../lib/transitions';
 import type { TitleTransitionSnapshot } from '../lib/transitions';
-import { haptic } from '../lib/telegram';
+import { haptic, shareTitle } from '../lib/telegram';
 import { useWatchlistMutation } from '../hooks/useWatchlistMutation';
 
 export function TitlePage() {
@@ -148,7 +148,18 @@ export function TitlePage() {
         <div className="title-hero__top" style={sharedTransitionStyle}>
           <Poster title={title} />
           <div className="title-hero__name">
-            <span className="muted">{title.media_type === 'tv' ? 'Сериал' : 'Фильм'}</span>
+            <div className="title-hero__eyebrow">
+              <span className="muted">{title.media_type === 'tv' ? 'Сериал' : 'Фильм'}</span>
+              <button
+                className="icon-button title-share-button"
+                type="button"
+                onClick={() => shareTitle(title.media_type, title.tmdb_id, title.title)}
+                aria-label={`Поделиться: ${title.title}`}
+                title="Поделиться"
+              >
+                <Share2 size={16} aria-hidden />
+              </button>
+            </div>
             <h2>{title.title}</h2>
             {title.release_year ? <p className="muted">{title.release_year}</p> : null}
             <div className="title-hero__scores">
