@@ -45,3 +45,16 @@ func TestParseAdminChatIDs(t *testing.T) {
 		}
 	}
 }
+
+func TestLoadConfigReadsVLESSURL(t *testing.T) {
+	t.Setenv("BACKUP_ENABLED", "false")
+	t.Setenv("BACKUP_VLESS_URL", "  vless://example  ")
+
+	config, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("LoadConfig returned error: %v", err)
+	}
+	if config.VLESSURL != "vless://example" {
+		t.Fatalf("unexpected VLESS URL: %q", config.VLESSURL)
+	}
+}

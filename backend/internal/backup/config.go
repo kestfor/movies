@@ -19,6 +19,7 @@ type Config struct {
 	DatabaseURL            string
 	TmpDir                 string
 	BotToken               string
+	VLESSURL               string
 }
 
 type DailySchedule struct {
@@ -72,6 +73,7 @@ func LoadConfig() (Config, error) {
 		DatabaseURL:            databaseURL,
 		TmpDir:                 tmpDir,
 		BotToken:               botToken,
+		VLESSURL:               strings.TrimSpace(os.Getenv("BACKUP_VLESS_URL")),
 	}, nil
 }
 

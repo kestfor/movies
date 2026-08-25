@@ -44,7 +44,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	bot, err := telego.NewBot(cfg.BotToken)
+	telegramConnection := backup.NewTelegramConnection(cfg.VLESSURL, logger)
+	defer func() {
+		if err := telegramConnection.Close(); err != nil {
+			logger.Warn("close Telegram connection", "error", err)
+		}
+	}()
+
+	bot, err := telego.NewBot(cfg.BotToken, telego.WithAPICaller(telegramConnection.Caller))
 	if err != nil {
 		logger.Error("create telegram bot", "error", err)
 		os.Exit(1)
