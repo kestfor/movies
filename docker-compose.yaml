@@ -66,6 +66,7 @@ services:
       BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-03:00}
       BACKUP_TIMEZONE: ${BACKUP_TIMEZONE:-Asia/Krasnoyarsk}
       BACKUP_DATABASE_URL: *database-url
+      BACKUP_VLESS_URL: ${BACKUP_VLESS_URL:-}
     restart: unless-stopped
     depends_on:
       migrate:

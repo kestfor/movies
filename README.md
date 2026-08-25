@@ -39,7 +39,8 @@ flowchart LR
     A --> M[TMDB API]
     A --> B[Telegram Bot API]
     K[Backup bot] --> P
-    K --> B
+    K --> V[VLESS VPN]
+    V --> B
 ```
 
 The backend keeps protocol handling, business rules, and persistence in separate HTTP, usecase, and repository layers. TMDB data is snapshotted lazily when a title first becomes part of persisted user activity.
@@ -82,8 +83,11 @@ Copy [`.env.example`](.env.example) to `.env` and adjust it locally. Important v
 | `VITE_API_BASE_URL` | Frontend API base path at build time |
 | `BACKUP_ENABLED` | Enables the backup bot |
 | `BACKUP_ADMIN_CHAT_IDS` | Telegram recipients for backup files |
+| `BACKUP_VLESS_URL` | VLESS connection URI used by the backup bot for Telegram traffic |
 
 Never commit `.env`, API tokens, webhook URLs, database dumps, or production credentials.
+
+When `BACKUP_VLESS_URL` contains a VLESS URI, the backup bot sends only Telegram API traffic through the configured VPN. PostgreSQL traffic stays on the Docker network. If the URI is missing, invalid, or the VPN connection fails, the bot logs a warning and falls back to a direct Telegram connection.
 
 ## Local development
 
