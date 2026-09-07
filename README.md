@@ -89,6 +89,10 @@ Never commit `.env`, API tokens, webhook URLs, database dumps, or production cre
 
 When `BACKUP_VLESS_URL` contains a VLESS URI, the backup bot sends only Telegram API traffic through the configured VPN. PostgreSQL traffic stays on the Docker network. If the URI is missing, invalid, or the VPN connection fails, the bot logs a warning and falls back to a direct Telegram connection.
 
+If Telegram polling fails, the bot closes the current connection, recreates the HTTP transports and VLESS instance, and retries after two seconds with the same update offset. Reconnection waits for active Telegram sends to finish. Poll requests have a 35-second deadline; shutting down the bot does not trigger reconnection.
+
+Failed message and backup document sends also recreate the shared connection and retry once. Document request bodies are buffered to a temporary file so the retry can resend the complete upload; the temporary file is removed afterwards. Canceled requests do not trigger reconnection or retries.
+
 ## Local development
 
 ### Backend

@@ -44,27 +44,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	telegramConnection := backup.NewTelegramConnection(cfg.VLESSURL, logger)
+	telegramConnection := backup.NewTelegramClient(cfg.VLESSURL, logger)
 	defer func() {
 		if err := telegramConnection.Close(); err != nil {
 			logger.Warn("close Telegram connection", "error", err)
 		}
 	}()
 
-	bot, err := telego.NewBot(cfg.BotToken, telego.WithAPICaller(telegramConnection.Caller))
+	bot, err := telego.NewBot(cfg.BotToken, telego.WithAPICaller(telegramConnection))
 	if err != nil {
 		logger.Error("create telegram bot", "error", err)
 		os.Exit(1)
 	}
 
-	updates, err := bot.UpdatesViaLongPolling(ctx, &telego.GetUpdatesParams{
-		AllowedUpdates: []string{"message"},
-		Timeout:        30,
-	})
-	if err != nil {
-		logger.Error("start telegram long polling", "error", err)
-		os.Exit(1)
-	}
+	updates := backup.UpdatesViaLongPolling(ctx, bot, telegramConnection.Reconnect, logger)
 
 	svc := backup.NewService(
 		&backup.Dumper{
