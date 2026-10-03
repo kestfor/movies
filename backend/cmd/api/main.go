@@ -43,7 +43,13 @@ func main() {
 	userRepo := postgresrepo.NewUserRepository(queries)
 	criteriaRepo := postgresrepo.NewCriteriaRepository(queries)
 	authSvc := usecaseauth.NewService(userRepo, cfg.BotToken, cfg.AuthTTL)
-	tmdbClient := tmdb.NewClient(cfg.TMDBBaseURL, cfg.TMDBToken, cfg.TMDBLanguage, nil, 15*time.Minute)
+	tmdbConnection := tmdb.NewConnection(cfg.VLESSURL, logger)
+	defer func() {
+		if err := tmdbConnection.Close(); err != nil {
+			logger.Warn("close TMDB connection", "error", err)
+		}
+	}()
+	tmdbClient := tmdb.NewClient(cfg.TMDBBaseURL, cfg.TMDBToken, cfg.TMDBLanguage, tmdbConnection.Client, 15*time.Minute)
 	criteriaSvc := usecasecriteria.NewService(criteriaRepo)
 	ratingRepo := postgresrepo.NewRatingRepository(pool, queries)
 	titleSvc := usecasetitles.NewService(tmdbClient, ratingRepo)

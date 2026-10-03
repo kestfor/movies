@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 	"time"
 )
 
@@ -13,6 +14,7 @@ type Config struct {
 	TMDBToken    string
 	TMDBBaseURL  string
 	TMDBLanguage string
+	VLESSURL     string
 }
 
 func Load() Config {
@@ -31,6 +33,7 @@ func Load() Config {
 		TMDBToken:    os.Getenv("TMDB_API_TOKEN"),
 		TMDBBaseURL:  getenv("TMDB_BASE_URL", "https://api.themoviedb.org/3"),
 		TMDBLanguage: getenv("TMDB_LANGUAGE", "ru-RU"),
+		VLESSURL:     strings.TrimSpace(os.Getenv("BACKUP_VLESS_URL")),
 	}
 }
 
