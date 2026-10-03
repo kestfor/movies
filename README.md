@@ -36,10 +36,11 @@ flowchart LR
     T --> F[React frontend]
     F -->|/api/v1| A[Go API]
     A --> P[(PostgreSQL)]
-    A --> M[TMDB API]
+    A --> V[VLESS VPN]
+    V --> M[TMDB API]
     A --> B[Telegram Bot API]
     K[Backup bot] --> P
-    K --> V[VLESS VPN]
+    K --> V
     V --> B
 ```
 
@@ -83,11 +84,11 @@ Copy [`.env.example`](.env.example) to `.env` and adjust it locally. Important v
 | `VITE_API_BASE_URL` | Frontend API base path at build time |
 | `BACKUP_ENABLED` | Enables the backup bot |
 | `BACKUP_ADMIN_CHAT_IDS` | Telegram recipients for backup files |
-| `BACKUP_VLESS_URL` | VLESS connection URI used by the backup bot for Telegram traffic |
+| `BACKUP_VLESS_URL` | VLESS connection URI used by the backup bot for Telegram traffic and by the API for TMDB traffic |
 
 Never commit `.env`, API tokens, webhook URLs, database dumps, or production credentials.
 
-When `BACKUP_VLESS_URL` contains a VLESS URI, the backup bot sends only Telegram API traffic through the configured VPN. PostgreSQL traffic stays on the Docker network. If the URI is missing, invalid, or the VPN connection fails, the bot logs a warning and falls back to a direct Telegram connection.
+When `BACKUP_VLESS_URL` contains a VLESS URI, the backup bot sends Telegram API traffic and the API sends TMDB traffic through their own VLESS connections. PostgreSQL traffic stays on the Docker network. If the URI is missing or invalid, either integration uses a direct connection. If a VLESS request fails, that integration logs a warning and switches to a direct connection.
 
 If Telegram polling fails, the bot closes the current connection, recreates the HTTP transports and VLESS instance, and retries after two seconds with the same update offset. Reconnection waits for active Telegram sends to finish. Poll requests have a 35-second deadline; shutting down the bot does not trigger reconnection.
 
