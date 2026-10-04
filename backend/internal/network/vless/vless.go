@@ -20,6 +20,7 @@ import (
 	xraycore "github.com/xtls/xray-core/core"
 	_ "github.com/xtls/xray-core/main/json"
 	_ "github.com/xtls/xray-core/proxy/vless/outbound"
+	_ "github.com/xtls/xray-core/transport/internet/grpc"
 	_ "github.com/xtls/xray-core/transport/internet/reality"
 	_ "github.com/xtls/xray-core/transport/internet/splithttp"
 )
@@ -46,9 +47,12 @@ type vlessConnection struct {
 	ID          string
 	Encryption  string
 	Flow        string
+	Transport   string
 	Mode        string
 	Path        string
 	Host        string
+	ServiceName string
+	Authority   string
 	ServerName  string
 	Fingerprint string
 	PublicKey   string
@@ -75,8 +79,9 @@ func parseVLESSURL(raw string) (vlessConnection, error) {
 	}
 
 	query := parsed.Query()
-	if !strings.EqualFold(query.Get("type"), "xhttp") {
-		return vlessConnection{}, errors.New("only VLESS XHTTP transport is supported")
+	transport := strings.ToLower(query.Get("type"))
+	if transport != "xhttp" && transport != "grpc" {
+		return vlessConnection{}, errors.New("only VLESS XHTTP and gRPC transports are supported")
 	}
 	if !strings.EqualFold(query.Get("security"), "reality") {
 		return vlessConnection{}, errors.New("only VLESS REALITY security is supported")
@@ -91,18 +96,36 @@ func parseVLESSURL(raw string) (vlessConnection, error) {
 	}
 
 	mode := query.Get("mode")
-	if mode == "" {
-		mode = "auto"
-	}
-	switch mode {
-	case "auto", "packet-up", "stream-up", "stream-one":
-	default:
-		return vlessConnection{}, errors.New("unsupported VLESS XHTTP mode")
-	}
-
 	path := query.Get("path")
-	if path == "" {
-		path = "/"
+	serviceName := query.Get("serviceName")
+	var extra map[string]any
+	switch transport {
+	case "xhttp":
+		if mode == "" {
+			mode = "auto"
+		}
+		switch mode {
+		case "auto", "packet-up", "stream-up", "stream-one":
+		default:
+			return vlessConnection{}, errors.New("unsupported VLESS XHTTP mode")
+		}
+		if path == "" {
+			path = "/"
+		}
+		extra, err = parseXHTTPExtra(query.Get("extra"))
+		if err != nil {
+			return vlessConnection{}, err
+		}
+	case "grpc":
+		if serviceName == "" {
+			return vlessConnection{}, errors.New("VLESS gRPC serviceName is required")
+		}
+		if mode == "" {
+			mode = "gun"
+		}
+		if mode != "gun" && mode != "multi" {
+			return vlessConnection{}, errors.New("unsupported VLESS gRPC mode")
+		}
 	}
 	spiderX := query.Get("spx")
 	if spiderX == "" {
@@ -125,20 +148,18 @@ func parseVLESSURL(raw string) (vlessConnection, error) {
 		return vlessConnection{}, errors.New("VLESS REALITY SNI and fingerprint are required")
 	}
 
-	extra, err := parseXHTTPExtra(query.Get("extra"))
-	if err != nil {
-		return vlessConnection{}, err
-	}
-
 	return vlessConnection{
 		Address:     parsed.Hostname(),
 		Port:        uint16(port),
 		ID:          parsed.User.Username(),
 		Encryption:  encryption,
 		Flow:        query.Get("flow"),
+		Transport:   transport,
 		Mode:        mode,
 		Path:        path,
 		Host:        query.Get("host"),
+		ServiceName: serviceName,
+		Authority:   query.Get("authority"),
 		ServerName:  query.Get("sni"),
 		Fingerprint: query.Get("fp"),
 		PublicKey:   publicKey,
@@ -188,13 +209,33 @@ func parseExtraValue(value string) any {
 }
 
 func (c vlessConnection) xrayConfig() ([]byte, error) {
-	xhttpSettings := map[string]any{
-		"host": c.Host,
-		"path": c.Path,
-		"mode": c.Mode,
+	streamSettings := map[string]any{
+		"network":  c.Transport,
+		"security": "reality",
+		"realitySettings": map[string]any{
+			"serverName":  c.ServerName,
+			"fingerprint": c.Fingerprint,
+			"publicKey":   c.PublicKey,
+			"shortId":     c.ShortID,
+			"spiderX":     c.SpiderX,
+		},
 	}
-	if len(c.Extra) > 0 {
-		xhttpSettings["extra"] = c.Extra
+	if c.Transport == "grpc" {
+		streamSettings["grpcSettings"] = map[string]any{
+			"serviceName": c.ServiceName,
+			"authority":   c.Authority,
+			"multiMode":   c.Mode == "multi",
+		}
+	} else {
+		xhttpSettings := map[string]any{
+			"host": c.Host,
+			"path": c.Path,
+			"mode": c.Mode,
+		}
+		if len(c.Extra) > 0 {
+			xhttpSettings["extra"] = c.Extra
+		}
+		streamSettings["xhttpSettings"] = xhttpSettings
 	}
 
 	config := map[string]any{
@@ -211,18 +252,7 @@ func (c vlessConnection) xrayConfig() ([]byte, error) {
 					"encryption": c.Encryption,
 					"flow":       c.Flow,
 				},
-				"streamSettings": map[string]any{
-					"network":  "xhttp",
-					"security": "reality",
-					"realitySettings": map[string]any{
-						"serverName":  c.ServerName,
-						"fingerprint": c.Fingerprint,
-						"publicKey":   c.PublicKey,
-						"shortId":     c.ShortID,
-						"spiderX":     c.SpiderX,
-					},
-					"xhttpSettings": xhttpSettings,
-				},
+				"streamSettings": streamSettings,
 			},
 		},
 	}

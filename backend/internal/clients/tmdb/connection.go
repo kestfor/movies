@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"movies/backend/internal/network/vless"
@@ -67,21 +67,53 @@ type failoverTransport struct {
 	proxy  http.RoundTripper
 	direct http.RoundTripper
 	logger *slog.Logger
-	failed atomic.Bool
+
+	mu      sync.Mutex
+	retryAt time.Time
+	probing bool
 }
 
+const vlessRetryDelay = 5 * time.Second
+
 func (t *failoverTransport) RoundTrip(request *http.Request) (*http.Response, error) {
-	if t.failed.Load() {
+	t.mu.Lock()
+	if t.probing || time.Now().Before(t.retryAt) {
+		t.mu.Unlock()
 		return t.direct.RoundTrip(request)
 	}
+	probe := !t.retryAt.IsZero()
+	if probe {
+		t.probing = true
+	}
+	t.mu.Unlock()
 
 	response, err := t.proxy.RoundTrip(request)
-	if err == nil || request.Context().Err() != nil {
+	if err == nil {
+		if probe {
+			t.mu.Lock()
+			t.probing = false
+			t.retryAt = time.Time{}
+			t.mu.Unlock()
+		}
+		return response, err
+	}
+	if request.Context().Err() != nil {
+		if probe {
+			t.mu.Lock()
+			t.probing = false
+			t.mu.Unlock()
+		}
 		return response, err
 	}
 
-	if t.failed.CompareAndSwap(false, true) {
-		t.logger.Warn("VLESS VPN connection failed; falling back to direct TMDB connection")
+	t.mu.Lock()
+	if probe || t.retryAt.IsZero() {
+		t.retryAt = time.Now().Add(vlessRetryDelay)
+		t.logger.Warn("VLESS VPN connection failed; falling back to direct TMDB connection", "retry_after", vlessRetryDelay)
 	}
+	if probe {
+		t.probing = false
+	}
+	t.mu.Unlock()
 	return t.direct.RoundTrip(request)
 }
