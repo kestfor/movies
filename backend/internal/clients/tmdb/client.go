@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -24,6 +25,7 @@ var (
 const (
 	tmdbImageBaseURL = "https://image.tmdb.org/t/p/"
 	tmdbPosterSize   = "w500"
+	maxErrorBodySize = 2048
 )
 
 type Client struct {
@@ -195,13 +197,13 @@ func (c *Client) genreMap(ctx context.Context, mediaType domain.MediaType) (map[
 }
 
 func (c *Client) doJSON(ctx context.Context, method, rawURL string, query url.Values, out any) error {
-	if c.apiToken == "" {
-		return ErrMissingToken
-	}
-
 	reqURL, err := url.Parse(rawURL)
 	if err != nil {
-		return ErrUpstream
+		return fmt.Errorf("%w: parse TMDB request URL: %w", ErrUpstream, err)
+	}
+	operation := fmt.Sprintf("TMDB %s %s", method, reqURL.Path)
+	if c.apiToken == "" {
+		return fmt.Errorf("%s: %w", operation, ErrMissingToken)
 	}
 	query = cloneValues(query)
 	if c.language != "" {
@@ -213,27 +215,42 @@ func (c *Client) doJSON(ctx context.Context, method, rawURL string, query url.Va
 
 	req, err := http.NewRequestWithContext(ctx, method, reqURL.String(), nil)
 	if err != nil {
-		return ErrUpstream
+		return fmt.Errorf("%w: create %s request: %w", ErrUpstream, operation, err)
 	}
 	req.Header.Set("Authorization", "Bearer "+c.apiToken)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return ErrUpstream
+		return fmt.Errorf("%w: %s request failed: %w", ErrUpstream, operation, err)
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusOK:
-	case http.StatusNotFound:
-		return ErrNotFound
-	default:
-		return ErrUpstream
+	if resp.StatusCode != http.StatusOK {
+		cause := ErrUpstream
+		if resp.StatusCode == http.StatusNotFound {
+			cause = ErrNotFound
+		}
+		body, err := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodySize+1))
+		if err != nil {
+			return fmt.Errorf("%w: %s returned HTTP %d; read response body: %w", cause, operation, resp.StatusCode, err)
+		}
+		truncated := len(body) > maxErrorBodySize
+		if truncated {
+			body = body[:maxErrorBodySize]
+		}
+		message := strings.TrimSpace(string(body))
+		if message == "" {
+			return fmt.Errorf("%w: %s returned HTTP %d", cause, operation, resp.StatusCode)
+		}
+		if truncated {
+			return fmt.Errorf("%w: %s returned HTTP %d: %q (truncated)", cause, operation, resp.StatusCode, message)
+		}
+		return fmt.Errorf("%w: %s returned HTTP %d: %q", cause, operation, resp.StatusCode, message)
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
-		return ErrUpstream
+		return fmt.Errorf("%w: decode %s response: %w", ErrUpstream, operation, err)
 	}
 	return nil
 }
