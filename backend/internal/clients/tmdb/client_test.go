@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -116,7 +117,7 @@ func TestClientReturnsNotFound(t *testing.T) {
 		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				StatusCode: http.StatusNotFound,
-				Body:       io.NopCloser(bytes.NewReader(nil)),
+				Body:       io.NopCloser(strings.NewReader(`{"status_message":"The resource could not be found"}`)),
 				Header:     make(http.Header),
 			}, nil
 		}),
@@ -125,6 +126,79 @@ func TestClientReturnsNotFound(t *testing.T) {
 	_, err := client.Get(context.Background(), domain.MediaTypeMovie, 404)
 	if !errors.Is(err, ErrNotFound) {
 		t.Fatalf("Get() error = %v, want ErrNotFound", err)
+	}
+	if !strings.Contains(err.Error(), "GET /movie/404") || !strings.Contains(err.Error(), "The resource could not be found") {
+		t.Fatalf("Get() error lacks request or response context: %v", err)
+	}
+}
+
+func TestClientWrapsTransportError(t *testing.T) {
+	transportErr := errors.New("connection refused")
+	client := NewClient("https://tmdb.local", "secret-token", "ru-RU", &http.Client{
+		Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+			return nil, transportErr
+		}),
+	}, time.Minute)
+
+	_, err := client.Get(context.Background(), domain.MediaTypeMovie, 603)
+	if !errors.Is(err, ErrUpstream) || !errors.Is(err, transportErr) {
+		t.Fatalf("Get() error = %v, want upstream and transport errors", err)
+	}
+	if !strings.Contains(err.Error(), "GET /movie/603") || strings.Contains(err.Error(), "secret-token") {
+		t.Fatalf("Get() error lacks request context or exposes token: %v", err)
+	}
+}
+
+func TestClientMissingTokenIncludesRequestContext(t *testing.T) {
+	client := NewClient("https://tmdb.local", "", "ru-RU", nil, time.Minute)
+
+	_, err := client.Get(context.Background(), domain.MediaTypeMovie, 603)
+	if !errors.Is(err, ErrMissingToken) || !strings.Contains(err.Error(), "TMDB GET /movie/603") {
+		t.Fatalf("Get() error = %v, want missing token with request context", err)
+	}
+}
+
+func TestClientIncludesHTTPStatusAndLimitedResponseBody(t *testing.T) {
+	body := `{"status_message":"Invalid API key"}` + strings.Repeat("x", maxErrorBodySize)
+	client := NewClient("https://tmdb.local", "secret-token", "ru-RU", &http.Client{
+		Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusUnauthorized,
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}, time.Minute)
+
+	_, err := client.Get(context.Background(), domain.MediaTypeMovie, 603)
+	if !errors.Is(err, ErrUpstream) {
+		t.Fatalf("Get() error = %v, want ErrUpstream", err)
+	}
+	if !strings.Contains(err.Error(), "GET /movie/603 returned HTTP 401") || !strings.Contains(err.Error(), "Invalid API key") || !strings.Contains(err.Error(), "truncated") {
+		t.Fatalf("Get() error lacks HTTP status or limited response body: %v", err)
+	}
+	if strings.Contains(err.Error(), "secret-token") || len(err.Error()) > maxErrorBodySize+150 {
+		t.Fatalf("Get() error exposes token or an unbounded body")
+	}
+}
+
+func TestClientWrapsResponseDecodeError(t *testing.T) {
+	client := NewClient("https://tmdb.local", "token", "ru-RU", &http.Client{
+		Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(`{"id":`)),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}, time.Minute)
+
+	_, err := client.Get(context.Background(), domain.MediaTypeMovie, 603)
+	if !errors.Is(err, ErrUpstream) || !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("Get() error = %v, want upstream and JSON decode errors", err)
+	}
+	if !strings.Contains(err.Error(), "decode TMDB GET /movie/603 response") {
+		t.Fatalf("Get() error lacks decode context: %v", err)
 	}
 }
 
